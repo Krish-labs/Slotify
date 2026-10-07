@@ -1,0 +1,41 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Preference Schema",
+  "type": "object",
+  "properties": {
+    "entity_type": {
+      "type": "string",
+      "enum": ["faculty", "section", "batch", "subject"]
+    },
+    "entity_id": { "type": "string" },
+    "preferences": {
+      "type": "object",
+      "properties": {
+        "preferred_days": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 0, "maximum": 6 }
+        },
+        "preferred_shifts": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["MORNING", "LATE"] }
+        },
+        "preferred_rooms": { "type": "array", "items": { "type": "string" } },
+        "avoid_days": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 0, "maximum": 6 }
+        },
+        "avoid_shifts": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["MORNING", "LATE"] }
+        },
+        "max_consecutive_sessions": { "type": "integer", "minimum": 1 },
+        "max_sessions_per_day": { "type": "integer", "minimum": 1 },
+        "prefer_consecutive": { "type": "boolean" },
+        "prefer_morning_for_theory": { "type": "boolean" },
+        "prefer_same_room": { "type": "boolean" }
+      }
+    },
+    "priority": { "type": "string", "enum": ["high", "medium", "low"], "default": "medium" }
+  },
+  "required": ["entity_type", "entity_id", "preferences"]
+}

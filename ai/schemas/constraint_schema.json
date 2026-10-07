@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Constraint Schema",
+  "type": "object",
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": [
+        "faculty_unavailability",
+        "session_preference",
+        "resource_unavailability",
+        "batch_grouping",
+        "consecutive_sessions",
+        "max_sessions_per_day",
+        "room_preference",
+        "faculty_continuity"
+      ]
+    },
+    "faculty_id": { "type": "string" },
+    "faculty_name": { "type": "string" },
+    "section_id": { "type": "string" },
+    "subject_code": { "type": "string" },
+    "resource_id": { "type": "string" },
+    "batch_id": { "type": "string" },
+    "constraints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "day_of_week": { "type": "integer", "minimum": 0, "maximum": 6 },
+          "shift": { "type": "string", "enum": ["MORNING", "LATE"] },
+          "start_time": { "type": "string", "pattern": "^([01]?[0-9]|2[0-3]):[0-5][0-9]$" },
+          "end_time": { "type": "string", "pattern": "^([01]?[0-9]|2[0-3]):[0-5][0-9]$" },
+          "reason": { "type": "string" },
+          "priority": { "type": "string", "enum": ["high", "medium", "low"] }
+        },
+        "required": ["day_of_week"]
+      }
+    },
+    "preferred_shift": { "type": "string", "enum": ["MORNING", "LATE"] },
+    "preferred_days": { "type": "array", "items": { "type": "integer", "minimum": 0, "maximum": 6 } },
+    "max_sessions": { "type": "integer", "minimum": 1 },
+    "room_preference": { "type": "string" }
+  },
+  "required": ["type"],
+  "oneOf": [
+    { "required": ["type", "faculty_id"] },
+    { "required": ["type", "section_id"] },
+    { "required": ["type", "resource_id"] },
+    { "required": ["type", "batch_id"] }
+  ]
+}

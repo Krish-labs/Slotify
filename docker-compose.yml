@@ -1,0 +1,110 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: schedulai-postgres
+    environment:
+      POSTGRES_DB: schedulai
+      POSTGRES_USER: schedulai
+      POSTGRES_PASSWORD: schedulai
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U schedulai -d schedulai"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: schedulai-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # One-shot: applies Alembic migrations, then exits. backend/worker wait for it.
+  migrate:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: schedulai-migrate
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://schedulai:schedulai@postgres:5432/schedulai
+      - APP_ENV=development
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: alembic upgrade head
+    restart: "no"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: schedulai-backend
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://schedulai:schedulai@postgres:5432/schedulai
+      - REDIS_URL=redis://redis:6379/0
+      - APP_ENV=development
+      - DEBUG=true
+      - API_CORS_ORIGINS=["http://localhost:5173","http://localhost:3000"]
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - ./data:/app/data
+      - ./outputs:/app/outputs
+      - ./scripts:/app/scripts
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: schedulai-frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      # Vite proxies /api to the backend container (localhost would be this container).
+      - VITE_PROXY_TARGET=http://backend:8000
+    depends_on:
+      - backend
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: schedulai-worker
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://schedulai:schedulai@postgres:5432/schedulai
+      - REDIS_URL=redis://redis:6379/0
+      - APP_ENV=development
+    volumes:
+      - ./backend:/app
+      - ./data:/app/data
+      - ./outputs:/app/outputs
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    command: python -m app.workers.runner
+
+volumes:
+  postgres_data:
+  redis_data:

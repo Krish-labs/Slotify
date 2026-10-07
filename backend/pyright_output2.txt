@@ -1,0 +1,589 @@
+/Users/krishgupta/SchedulAI/backend/app/api/academic_term.py
+  /Users/krishgupta/SchedulAI/backend/app/api/academic_term.py:35:15 - error: Argument of type "list[AcademicTerm]" cannot be assigned to parameter "items" of type "list[AcademicTermResponse]" in function "__init__"
+    "list[AcademicTerm]" is not assignable to "list[AcademicTermResponse]"
+      Type parameter "_T@list" is invariant, but "AcademicTerm" is not the same as "AcademicTermResponse"
+      Consider switching from "list" to "Sequence" which is covariant (reportArgumentType)
+/Users/krishgupta/SchedulAI/backend/app/api/auth.py
+  /Users/krishgupta/SchedulAI/backend/app/api/auth.py:58:24 - error: Invalid conditional operand of type "Column[bool]"
+    Method __bool__ for type "Column[bool]" returns type "NoReturn" rather than "bool" (reportGeneralTypeIssues)
+  /Users/krishgupta/SchedulAI/backend/app/api/auth.py:70:60 - error: Argument of type "Column[str]" cannot be assigned to parameter "hashed_password" of type "str" in function "verify_password"
+    "Column[str]" is not assignable to "str" (reportArgumentType)
+  /Users/krishgupta/SchedulAI/backend/app/api/auth.py:92:15 - error: Argument of type "Column[str]" cannot be assigned to parameter "email" of type "str" in function "__init__"
+    "Column[str]" is not assignable to "str" (reportArgumentType)
+  /Users/krishgupta/SchedulAI/backend/app/api/auth.py:93:19 - error: Argument of type "Column[str]" cannot be assigned to parameter "full_name" of type "str | None" in function "__init__"
+    Type "Column[str]" is not assignable to type "str | None"
+      "Column[str]" is not assignable to "str"
+      "Column[str]" is not assignable to "None" (reportArgumentType)
+  /Users/krishgupta/SchedulAI/backend/app/api/auth.py:94:19 - error: Argument of type "Column[bool]" cannot be assigned to parameter "is_active" of type "bool" in function "__init__"
+    "Column[bool]" is not assignable to "bool" (reportArgumentType)
+/Users/krishgupta/SchedulAI/backend/app/api/dependencies.py
+  /Users/krishgupta/SchedulAI/backend/app/api/dependencies.py:18:12 - error: Invalid conditional operand of type "Column[bool]"
+    Method __bool__ for type "Column[bool]" returns type "NoReturn" rather than "bool" (reportGeneralTypeIssues)
+  /Users/krishgupta/SchedulAI/backend/app/api/dependencies.py:42:12 - error: Invalid conditional operand of type "Column[bool]"
+    Method __bool__ for type "Column[bool]" returns type "NoReturn" rather than "bool" (reportGeneralTypeIssues)
+/Users/krishgupta/SchedulAI/backend/app/api/faculty.py
+  /Users/krishgupta/SchedulAI/backend/app/api/faculty.py:39:15 - error: Argument of type "list[Faculty]" cannot be assigned to parameter "items" of type "list[FacultyResponse]" in function "__init__"
+    "list[Faculty]" is not assignable to "list[FacultyResponse]"
+      Type parameter "_T@list" is invariant, but "Faculty" is not the same as "FacultyResponse"
+      Consider switching from "list" to "Sequence" which is covariant (reportArgumentType)
+/Users/krishgupta/SchedulAI/backend/app/api/load.py
+  /Users/krishgupta/SchedulAI/backend/app/api/load.py:45:22 - error: Argument of type "SessionType | None" cannot be assigned to parameter "session_type" of type "SessionType | None" in function "get_all"
+    Type "app.schemas.load.SessionType | None" is not assignable to type "app.database.models.faculty_load.SessionType | None"
+      Type "SessionType" is not assignable to type "SessionType | None"
+        "app.schemas.load.SessionType" is not assignable to "app.database.models.faculty_load.SessionType"
+        "SessionType" is not assignable to "None" (reportArgumentType)
+  /Users/krishgupta/SchedulAI/backend/app/api/load.py:50:15 - error: Argument of type "list[FacultyLoad]" cannot be assigned to parameter "items" of type "list[FacultyLoadResponse]" in function "__init__"
+    "list[FacultyLoad]" is not assignable to "list[FacultyLoadResponse]"
+      Type parameter "_T@list" is invariant, but "FacultyLoad" is not the same as "FacultyLoadResponse"
+      Consider switching from "list" to "Sequence" which is covariant (reportArgumentType)
+  /Users/krishgupta/SchedulAI/backend/app/api/load.py:131:26 - error: "endswith" is not a known attribute of "None" (reportOptionalMemberAccess)
+  /Users/krishgupta/SchedulAI/backend/app/api/load.py:163:26 - error: "endswith" is not a known attribute of "None" (reportOptionalMemberAccess)
+  /Users/krishgupta/SchedulAI/backend/app/api/load.py:276:25 - error: Argument of type "BytesIO" cannot be assigned to parameter "path" of type "FilePath | WriteExcelBuffer | ExcelWriter[Unknown]" in function "__new__"
+    Type "BytesIO" is not assignable to type "FilePath | WriteExcelBuffer | ExcelWriter[Unknown]"
+      "BytesIO" is not assignable to "str"
+      "BytesIO" is incompatible with protocol "PathLike[str]"
+        "__fspath__" is not present
+      "BytesIO" is incompatible with protocol "WriteExcelBuffer"
+        "truncate" is an incompatible type
+          Type "(size: int | None = None, /) -> int" is not assignable to type "(size: int | None = ...) -> int"
+            Missing keyword parameter "size"
+    ... (reportArgumentType)
+  /Users/krishgupta/SchedulAI/backend/app/api/load.py:276:25 - error: Argument of type "BytesIO" cannot be assigned to parameter "path" of type "FilePath | WriteExcelBuffer | ExcelWriter[Unknown]" in function "__init__"
+    Type "BytesIO" is not assignable to type "FilePath | WriteExcelBuffer | ExcelWriter[Unknown]"
+      "BytesIO" is not assignable to "str"
+      "BytesIO" is incompatible with protocol "PathLike[str]"
+        "__fspath__" is not present
+      "BytesIO" is incompatible with protocol "WriteExcelBuffer"
+        "truncate" is an incompatible type
+          Type "(size: int | None = None, /) -> int" is not assignable to type "(size: int | None = ...) -> int"
+            Missing keyword parameter "size" (reportArgumentType)
+/Users/krishgupta/SchedulAI/backend/app/core/exceptions.py
+  /Users/krishgupta/SchedulAI/backend/app/core/exceptions.py:13:54 - error: Expression of type "None" cannot be assigned to parameter of type "dict[Unknown, Unknown]"
+    "None" is not assignable to "dict[Unknown, Unknown]" (reportArgumentType)
+  /Users/krishgupta/SchedulAI/backend/app/core/exceptions.py:59:40 - error: Cannot access attribute "details" for class "SchedulAIException"
+    Attribute "details" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/core/exceptions.py:60:34 - error: Cannot access attribute "details" for class "SchedulAIException"
+    Attribute "details" is unknown (reportAttributeAccessIssue)
+/Users/krishgupta/SchedulAI/backend/app/database/connection.py
+  /Users/krishgupta/SchedulAI/backend/app/database/connection.py:24:23 - error: Return type of async generator function must be compatible with "AsyncGenerator[Any, Any]"
+    "AsyncGenerator[Any, Any, Any]" is not assignable to "AsyncSession" (reportInvalidTypeForm)
+  /Users/krishgupta/SchedulAI/backend/app/database/connection.py:26:15 - error: Return type of async generator function must be compatible with "AsyncGenerator[AsyncSession, Any]"
+    "AsyncGenerator[AsyncSession, Unknown, Unknown]" is not assignable to "AsyncSession" (reportReturnType)
+/Users/krishgupta/SchedulAI/backend/app/database/models/faculty_load.py
+  /Users/krishgupta/SchedulAI/backend/app/database/models/faculty_load.py:89:16 - error: Type "ColumnElement[int]" is not assignable to return type "int"
+    "ColumnElement[int]" is not assignable to "int" (reportReturnType)
+/Users/krishgupta/SchedulAI/backend/app/exporters/class_timetable_exporter.py
+  /Users/krishgupta/SchedulAI/backend/app/exporters/class_timetable_exporter.py:30:32 - error: "create_sheet" is not a known attribute of "None" (reportOptionalMemberAccess)
+  /Users/krishgupta/SchedulAI/backend/app/exporters/class_timetable_exporter.py:35:37 - error: "sheetnames" is not a known attribute of "None" (reportOptionalMemberAccess)
+  /Users/krishgupta/SchedulAI/backend/app/exporters/class_timetable_exporter.py:36:27 - error: "remove" is not a known attribute of "None" (reportOptionalMemberAccess)
+  /Users/krishgupta/SchedulAI/backend/app/exporters/class_timetable_exporter.py:36:34 - error: Object of type "None" is not subscriptable (reportOptionalSubscript)
+/Users/krishgupta/SchedulAI/backend/app/exporters/excel_exporter.py
+  /Users/krishgupta/SchedulAI/backend/app/exporters/excel_exporter.py:27:23 - error: "save" is not a known attribute of "None" (reportOptionalMemberAccess)
+  /Users/krishgupta/SchedulAI/backend/app/exporters/excel_exporter.py:37:89 - error: Expression of type "None" cannot be assigned to parameter of type "dict[int, str]"
+    "None" is not assignable to "dict[int, str]" (reportArgumentType)
+/Users/krishgupta/SchedulAI/backend/app/exporters/faculty_timetable_exporter.py
+  /Users/krishgupta/SchedulAI/backend/app/exporters/faculty_timetable_exporter.py:33:32 - error: "create_sheet" is not a known attribute of "None" (reportOptionalMemberAccess)
+  /Users/krishgupta/SchedulAI/backend/app/exporters/faculty_timetable_exporter.py:37:37 - error: "sheetnames" is not a known attribute of "None" (reportOptionalMemberAccess)
+  /Users/krishgupta/SchedulAI/backend/app/exporters/faculty_timetable_exporter.py:38:27 - error: "remove" is not a known attribute of "None" (reportOptionalMemberAccess)
+  /Users/krishgupta/SchedulAI/backend/app/exporters/faculty_timetable_exporter.py:38:34 - error: Object of type "None" is not subscriptable (reportOptionalSubscript)
+/Users/krishgupta/SchedulAI/backend/app/exporters/master_timetable_exporter.py
+  /Users/krishgupta/SchedulAI/backend/app/exporters/master_timetable_exporter.py:30:32 - error: "create_sheet" is not a known attribute of "None" (reportOptionalMemberAccess)
+  /Users/krishgupta/SchedulAI/backend/app/exporters/master_timetable_exporter.py:35:32 - error: "create_sheet" is not a known attribute of "None" (reportOptionalMemberAccess)
+  /Users/krishgupta/SchedulAI/backend/app/exporters/master_timetable_exporter.py:38:37 - error: "sheetnames" is not a known attribute of "None" (reportOptionalMemberAccess)
+  /Users/krishgupta/SchedulAI/backend/app/exporters/master_timetable_exporter.py:39:27 - error: "remove" is not a known attribute of "None" (reportOptionalMemberAccess)
+  /Users/krishgupta/SchedulAI/backend/app/exporters/master_timetable_exporter.py:39:34 - error: Object of type "None" is not subscriptable (reportOptionalSubscript)
+/Users/krishgupta/SchedulAI/backend/app/exporters/validation_report_exporter.py
+  /Users/krishgupta/SchedulAI/backend/app/exporters/validation_report_exporter.py:9:36 - error: "active" is not a known attribute of "None" (reportOptionalMemberAccess)
+  /Users/krishgupta/SchedulAI/backend/app/exporters/validation_report_exporter.py:10:20 - error: "title" is not a known attribute of "None" (reportOptionalMemberAccess)
+  /Users/krishgupta/SchedulAI/backend/app/exporters/validation_report_exporter.py:15:39 - error: "create_sheet" is not a known attribute of "None" (reportOptionalMemberAccess)
+  /Users/krishgupta/SchedulAI/backend/app/exporters/validation_report_exporter.py:20:41 - error: "create_sheet" is not a known attribute of "None" (reportOptionalMemberAccess)
+  /Users/krishgupta/SchedulAI/backend/app/exporters/validation_report_exporter.py:25:43 - error: "create_sheet" is not a known attribute of "None" (reportOptionalMemberAccess)
+/Users/krishgupta/SchedulAI/backend/app/main.py
+  /Users/krishgupta/SchedulAI/backend/app/main.py:41:47 - error: Argument of type "(request: Request[State], exc: SchedulAIException) -> JSONResponse" cannot be assigned to parameter "handler" of type "ExceptionHandler" in function "add_exception_handler"
+    Type "(request: Request[State], exc: SchedulAIException) -> JSONResponse" is not assignable to type "ExceptionHandler"
+      Type "(request: Request[State], exc: SchedulAIException) -> JSONResponse" is not assignable to type "HTTPExceptionHandler"
+        Parameter 2: type "Exception" is incompatible with type "SchedulAIException"
+          "Exception" is not assignable to "SchedulAIException"
+      Type "(request: Request[State], exc: SchedulAIException) -> JSONResponse" is not assignable to type "WebSocketExceptionHandler"
+        Parameter 1: type "WebSocket[State]" is incompatible with type "Request[State]"
+          "WebSocket[State]" is not assignable to "Request[State]"
+        Parameter 2: type "Exception" is incompatible with type "SchedulAIException"
+    ... (reportArgumentType)
+/Users/krishgupta/SchedulAI/backend/app/processors/assignment_builder.py
+  /Users/krishgupta/SchedulAI/backend/app/processors/assignment_builder.py:19:29 - error: Cannot access attribute "academic_year" for class "type[FacultyLoad]"
+    Attribute "academic_year" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/processors/assignment_builder.py:20:29 - error: Cannot access attribute "semester" for class "type[FacultyLoad]"
+    Attribute "semester" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/processors/assignment_builder.py:43:36 - error: Argument of type "Column[UUID]" cannot be assigned to parameter "key" of type "UUID" in function "get"
+    "Column[UUID]" is not assignable to "UUID" (reportArgumentType)
+  /Users/krishgupta/SchedulAI/backend/app/processors/assignment_builder.py:44:36 - error: Argument of type "Column[UUID]" cannot be assigned to parameter "key" of type "UUID" in function "get"
+    "Column[UUID]" is not assignable to "UUID" (reportArgumentType)
+  /Users/krishgupta/SchedulAI/backend/app/processors/assignment_builder.py:51:16 - error: Invalid conditional operand of type "ColumnElement[bool]"
+    Method __bool__ for type "ColumnElement[bool]" returns type "NoReturn" rather than "bool" (reportGeneralTypeIssues)
+  /Users/krishgupta/SchedulAI/backend/app/processors/assignment_builder.py:66:16 - error: Invalid conditional operand of type "ColumnElement[bool]"
+    Method __bool__ for type "ColumnElement[bool]" returns type "NoReturn" rather than "bool" (reportGeneralTypeIssues)
+  /Users/krishgupta/SchedulAI/backend/app/processors/assignment_builder.py:98:16 - error: Invalid conditional operand of type "ColumnElement[bool]"
+    Method __bool__ for type "ColumnElement[bool]" returns type "NoReturn" rather than "bool" (reportGeneralTypeIssues)
+/Users/krishgupta/SchedulAI/backend/app/processors/load_normalizer.py
+  /Users/krishgupta/SchedulAI/backend/app/processors/load_normalizer.py:91:24 - error: Argument of type "Unknown | None" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__"
+    Type "Unknown | None" is not assignable to type "ConvertibleToInt"
+      Type "None" is not assignable to type "ConvertibleToInt"
+        "None" is not assignable to "str"
+        "None" is incompatible with protocol "Buffer"
+          "__buffer__" is not present
+        "None" is incompatible with protocol "SupportsInt"
+          "__int__" is not present
+        "None" is incompatible with protocol "SupportsIndex"
+    ... (reportArgumentType)
+  /Users/krishgupta/SchedulAI/backend/app/processors/load_normalizer.py:91:24 - error: Argument of type "Unknown | None" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__"
+    Type "Unknown | None" is not assignable to type "ConvertibleToInt"
+      Type "None" is not assignable to type "ConvertibleToInt"
+        "None" is not assignable to "str"
+        "None" is incompatible with protocol "Buffer"
+          "__buffer__" is not present
+        "None" is incompatible with protocol "SupportsInt"
+          "__int__" is not present
+        "None" is incompatible with protocol "SupportsIndex" (reportArgumentType)
+  /Users/krishgupta/SchedulAI/backend/app/processors/load_normalizer.py:137:28 - error: Argument of type "ArrayLike | float | Number | number[Any, int | float | complex] | Index | Series | Unknown | ArrowExtensionArray | NAType | NaTType | Timestamp | Timedelta | Any | Index* | BooleanArray | FloatingArray | IntegerArray | ndarray[_AnyShape, dtype[signedinteger[_64Bit]]] | DatetimeIndex | TimedeltaIndex | Literal[0]" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__"
+    Type "ArrayLike | float | Number | number[Any, int | float | complex] | Index | Series | Unknown | ArrowExtensionArray | NAType | NaTType | Timestamp | Timedelta | Any | Index* | BooleanArray | FloatingArray | IntegerArray | ndarray[_AnyShape, dtype[signedinteger[_64Bit]]] | DatetimeIndex | TimedeltaIndex | Literal[0]" is not assignable to type "ConvertibleToInt"
+      Type "ExtensionArray" is not assignable to type "ConvertibleToInt"
+        "ExtensionArray" is not assignable to "str"
+        "ExtensionArray" is incompatible with protocol "Buffer"
+          "__buffer__" is not present
+        "ExtensionArray" is incompatible with protocol "SupportsInt"
+          "__int__" is not present
+        "ExtensionArray" is incompatible with protocol "SupportsIndex"
+    ... (reportArgumentType)
+  /Users/krishgupta/SchedulAI/backend/app/processors/load_normalizer.py:137:28 - error: Argument of type "ArrayLike | float | Number | number[Any, int | float | complex] | Index | Series | Unknown | ArrowExtensionArray | NAType | NaTType | Timestamp | Timedelta | Any | Index* | BooleanArray | FloatingArray | IntegerArray | ndarray[_AnyShape, dtype[signedinteger[_64Bit]]] | DatetimeIndex | TimedeltaIndex | Literal[0]" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__"
+    Type "ArrayLike | float | Number | number[Any, int | float | complex] | Index | Series | Unknown | ArrowExtensionArray | NAType | NaTType | Timestamp | Timedelta | Any | Index* | BooleanArray | FloatingArray | IntegerArray | ndarray[_AnyShape, dtype[signedinteger[_64Bit]]] | DatetimeIndex | TimedeltaIndex | Literal[0]" is not assignable to type "ConvertibleToInt"
+      Type "ExtensionArray" is not assignable to type "ConvertibleToInt"
+        "ExtensionArray" is not assignable to "str"
+        "ExtensionArray" is incompatible with protocol "Buffer"
+          "__buffer__" is not present
+        "ExtensionArray" is incompatible with protocol "SupportsInt"
+          "__int__" is not present
+        "ExtensionArray" is incompatible with protocol "SupportsIndex" (reportArgumentType)
+  /Users/krishgupta/SchedulAI/backend/app/processors/load_normalizer.py:138:31 - error: Argument of type "ArrayLike | float | Number | number[Any, int | float | complex] | Index | Series | Unknown | ArrowExtensionArray | NAType | NaTType | Timestamp | Timedelta | Any | Index* | BooleanArray | FloatingArray | IntegerArray | ndarray[_AnyShape, dtype[signedinteger[_64Bit]]] | DatetimeIndex | TimedeltaIndex | Literal[0]" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__"
+    Type "ArrayLike | float | Number | number[Any, int | float | complex] | Index | Series | Unknown | ArrowExtensionArray | NAType | NaTType | Timestamp | Timedelta | Any | Index* | BooleanArray | FloatingArray | IntegerArray | ndarray[_AnyShape, dtype[signedinteger[_64Bit]]] | DatetimeIndex | TimedeltaIndex | Literal[0]" is not assignable to type "ConvertibleToInt"
+      Type "ExtensionArray" is not assignable to type "ConvertibleToInt"
+        "ExtensionArray" is not assignable to "str"
+        "ExtensionArray" is incompatible with protocol "Buffer"
+          "__buffer__" is not present
+        "ExtensionArray" is incompatible with protocol "SupportsInt"
+          "__int__" is not present
+        "ExtensionArray" is incompatible with protocol "SupportsIndex"
+    ... (reportArgumentType)
+  /Users/krishgupta/SchedulAI/backend/app/processors/load_normalizer.py:138:31 - error: Argument of type "ArrayLike | float | Number | number[Any, int | float | complex] | Index | Series | Unknown | ArrowExtensionArray | NAType | NaTType | Timestamp | Timedelta | Any | Index* | BooleanArray | FloatingArray | IntegerArray | ndarray[_AnyShape, dtype[signedinteger[_64Bit]]] | DatetimeIndex | TimedeltaIndex | Literal[0]" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__"
+    Type "ArrayLike | float | Number | number[Any, int | float | complex] | Index | Series | Unknown | ArrowExtensionArray | NAType | NaTType | Timestamp | Timedelta | Any | Index* | BooleanArray | FloatingArray | IntegerArray | ndarray[_AnyShape, dtype[signedinteger[_64Bit]]] | DatetimeIndex | TimedeltaIndex | Literal[0]" is not assignable to type "ConvertibleToInt"
+      Type "ExtensionArray" is not assignable to type "ConvertibleToInt"
+        "ExtensionArray" is not assignable to "str"
+        "ExtensionArray" is incompatible with protocol "Buffer"
+          "__buffer__" is not present
+        "ExtensionArray" is incompatible with protocol "SupportsInt"
+          "__int__" is not present
+        "ExtensionArray" is incompatible with protocol "SupportsIndex" (reportArgumentType)
+  /Users/krishgupta/SchedulAI/backend/app/processors/load_normalizer.py:139:30 - error: Argument of type "ArrayLike | float | Number | number[Any, int | float | complex] | Index | Series | Unknown | ArrowExtensionArray | NAType | NaTType | Timestamp | Timedelta | Any | Index* | BooleanArray | FloatingArray | IntegerArray | ndarray[_AnyShape, dtype[signedinteger[_64Bit]]] | DatetimeIndex | TimedeltaIndex | Literal[0]" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__"
+    Type "ArrayLike | float | Number | number[Any, int | float | complex] | Index | Series | Unknown | ArrowExtensionArray | NAType | NaTType | Timestamp | Timedelta | Any | Index* | BooleanArray | FloatingArray | IntegerArray | ndarray[_AnyShape, dtype[signedinteger[_64Bit]]] | DatetimeIndex | TimedeltaIndex | Literal[0]" is not assignable to type "ConvertibleToInt"
+      Type "ExtensionArray" is not assignable to type "ConvertibleToInt"
+        "ExtensionArray" is not assignable to "str"
+        "ExtensionArray" is incompatible with protocol "Buffer"
+          "__buffer__" is not present
+        "ExtensionArray" is incompatible with protocol "SupportsInt"
+          "__int__" is not present
+        "ExtensionArray" is incompatible with protocol "SupportsIndex"
+    ... (reportArgumentType)
+  /Users/krishgupta/SchedulAI/backend/app/processors/load_normalizer.py:139:30 - error: Argument of type "ArrayLike | float | Number | number[Any, int | float | complex] | Index | Series | Unknown | ArrowExtensionArray | NAType | NaTType | Timestamp | Timedelta | Any | Index* | BooleanArray | FloatingArray | IntegerArray | ndarray[_AnyShape, dtype[signedinteger[_64Bit]]] | DatetimeIndex | TimedeltaIndex | Literal[0]" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__"
+    Type "ArrayLike | float | Number | number[Any, int | float | complex] | Index | Series | Unknown | ArrowExtensionArray | NAType | NaTType | Timestamp | Timedelta | Any | Index* | BooleanArray | FloatingArray | IntegerArray | ndarray[_AnyShape, dtype[signedinteger[_64Bit]]] | DatetimeIndex | TimedeltaIndex | Literal[0]" is not assignable to type "ConvertibleToInt"
+      Type "ExtensionArray" is not assignable to type "ConvertibleToInt"
+        "ExtensionArray" is not assignable to "str"
+        "ExtensionArray" is incompatible with protocol "Buffer"
+          "__buffer__" is not present
+        "ExtensionArray" is incompatible with protocol "SupportsInt"
+          "__int__" is not present
+        "ExtensionArray" is incompatible with protocol "SupportsIndex" (reportArgumentType)
+  /Users/krishgupta/SchedulAI/backend/app/processors/load_normalizer.py:140:29 - error: Argument of type "ArrayLike | float | Number | number[Any, int | float | complex] | Index | Series | Unknown | ArrowExtensionArray | NAType | NaTType | Timestamp | Timedelta | Any | Index* | BooleanArray | FloatingArray | IntegerArray | ndarray[_AnyShape, dtype[signedinteger[_64Bit]]] | DatetimeIndex | TimedeltaIndex | Literal[0]" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__"
+    Type "ArrayLike | float | Number | number[Any, int | float | complex] | Index | Series | Unknown | ArrowExtensionArray | NAType | NaTType | Timestamp | Timedelta | Any | Index* | BooleanArray | FloatingArray | IntegerArray | ndarray[_AnyShape, dtype[signedinteger[_64Bit]]] | DatetimeIndex | TimedeltaIndex | Literal[0]" is not assignable to type "ConvertibleToInt"
+      Type "ExtensionArray" is not assignable to type "ConvertibleToInt"
+        "ExtensionArray" is not assignable to "str"
+        "ExtensionArray" is incompatible with protocol "Buffer"
+          "__buffer__" is not present
+        "ExtensionArray" is incompatible with protocol "SupportsInt"
+          "__int__" is not present
+        "ExtensionArray" is incompatible with protocol "SupportsIndex"
+    ... (reportArgumentType)
+  /Users/krishgupta/SchedulAI/backend/app/processors/load_normalizer.py:140:29 - error: Argument of type "ArrayLike | float | Number | number[Any, int | float | complex] | Index | Series | Unknown | ArrowExtensionArray | NAType | NaTType | Timestamp | Timedelta | Any | Index* | BooleanArray | FloatingArray | IntegerArray | ndarray[_AnyShape, dtype[signedinteger[_64Bit]]] | DatetimeIndex | TimedeltaIndex | Literal[0]" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__"
+    Type "ArrayLike | float | Number | number[Any, int | float | complex] | Index | Series | Unknown | ArrowExtensionArray | NAType | NaTType | Timestamp | Timedelta | Any | Index* | BooleanArray | FloatingArray | IntegerArray | ndarray[_AnyShape, dtype[signedinteger[_64Bit]]] | DatetimeIndex | TimedeltaIndex | Literal[0]" is not assignable to type "ConvertibleToInt"
+      Type "ExtensionArray" is not assignable to type "ConvertibleToInt"
+        "ExtensionArray" is not assignable to "str"
+        "ExtensionArray" is incompatible with protocol "Buffer"
+          "__buffer__" is not present
+        "ExtensionArray" is incompatible with protocol "SupportsInt"
+          "__int__" is not present
+        "ExtensionArray" is incompatible with protocol "SupportsIndex" (reportArgumentType)
+  /Users/krishgupta/SchedulAI/backend/app/processors/load_normalizer.py:141:32 - error: Argument of type "ArrayLike | float | Number | number[Any, int | float | complex] | Index | Series | Unknown | ArrowExtensionArray | NAType | NaTType | Timestamp | Timedelta | Any | Index* | BooleanArray | FloatingArray | IntegerArray | ndarray[_AnyShape, dtype[signedinteger[_64Bit]]] | DatetimeIndex | TimedeltaIndex | Literal[1]" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__"
+    Type "ArrayLike | float | Number | number[Any, int | float | complex] | Index | Series | Unknown | ArrowExtensionArray | NAType | NaTType | Timestamp | Timedelta | Any | Index* | BooleanArray | FloatingArray | IntegerArray | ndarray[_AnyShape, dtype[signedinteger[_64Bit]]] | DatetimeIndex | TimedeltaIndex | Literal[1]" is not assignable to type "ConvertibleToInt"
+      Type "ExtensionArray" is not assignable to type "ConvertibleToInt"
+        "ExtensionArray" is not assignable to "str"
+        "ExtensionArray" is incompatible with protocol "Buffer"
+          "__buffer__" is not present
+        "ExtensionArray" is incompatible with protocol "SupportsInt"
+          "__int__" is not present
+        "ExtensionArray" is incompatible with protocol "SupportsIndex"
+    ... (reportArgumentType)
+  /Users/krishgupta/SchedulAI/backend/app/processors/load_normalizer.py:141:32 - error: Argument of type "ArrayLike | float | Number | number[Any, int | float | complex] | Index | Series | Unknown | ArrowExtensionArray | NAType | NaTType | Timestamp | Timedelta | Any | Index* | BooleanArray | FloatingArray | IntegerArray | ndarray[_AnyShape, dtype[signedinteger[_64Bit]]] | DatetimeIndex | TimedeltaIndex | Literal[1]" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__"
+    Type "ArrayLike | float | Number | number[Any, int | float | complex] | Index | Series | Unknown | ArrowExtensionArray | NAType | NaTType | Timestamp | Timedelta | Any | Index* | BooleanArray | FloatingArray | IntegerArray | ndarray[_AnyShape, dtype[signedinteger[_64Bit]]] | DatetimeIndex | TimedeltaIndex | Literal[1]" is not assignable to type "ConvertibleToInt"
+      Type "ExtensionArray" is not assignable to type "ConvertibleToInt"
+        "ExtensionArray" is not assignable to "str"
+        "ExtensionArray" is incompatible with protocol "Buffer"
+          "__buffer__" is not present
+        "ExtensionArray" is incompatible with protocol "SupportsInt"
+          "__int__" is not present
+        "ExtensionArray" is incompatible with protocol "SupportsIndex" (reportArgumentType)
+  /Users/krishgupta/SchedulAI/backend/app/processors/load_normalizer.py:143:54 - error: Invalid conditional operand of type "bool | NDArray[bool_] | NDFrame"
+    Method __bool__ for type "NDFrame" returns type "NoReturn" rather than "bool" (reportGeneralTypeIssues)
+/Users/krishgupta/SchedulAI/backend/app/processors/resource_processor.py
+  /Users/krishgupta/SchedulAI/backend/app/processors/resource_processor.py:122:10 - error: Function with declared return type "list[Resource]" must return value on all code paths
+    "None" is not assignable to "list[Resource]" (reportReturnType)
+/Users/krishgupta/SchedulAI/backend/app/processors/section_processor.py
+  /Users/krishgupta/SchedulAI/backend/app/processors/section_processor.py:13:70 - error: Function with declared return type "list[dict[Unknown, Unknown]]" must return value on all code paths
+    "None" is not assignable to "list[dict[Unknown, Unknown]]" (reportReturnType)
+  /Users/krishgupta/SchedulAI/backend/app/processors/section_processor.py:27:67 - error: Function with declared return type "dict[Unknown, Unknown]" must return value on all code paths
+    "None" is not assignable to "dict[Unknown, Unknown]" (reportReturnType)
+/Users/krishgupta/SchedulAI/backend/app/scheduler/constraints.py
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/constraints.py:25:93 - error: Cannot access attribute "id" for class "dict[Unknown, Unknown]"
+    Attribute "id" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/constraints.py:28:28 - error: Cannot access attribute "Add" for class "CpModel"
+    Attribute "Add" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/constraints.py:28:71 - error: Cannot access attribute "hours_per_week" for class "dict[Unknown, Unknown]"
+    Attribute "hours_per_week" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/constraints.py:36:41 - error: Cannot access attribute "faculty_id" for class "dict[Unknown, Unknown]"
+    Attribute "faculty_id" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/constraints.py:44:28 - error: Cannot access attribute "Add" for class "CpModel"
+    Attribute "Add" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/constraints.py:51:42 - error: Cannot access attribute "session_type" for class "dict[Unknown, Unknown]"
+    Attribute "session_type" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/constraints.py:52:41 - error: Cannot access attribute "section_id" for class "dict[Unknown, Unknown]"
+    Attribute "section_id" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/constraints.py:60:28 - error: Cannot access attribute "Add" for class "CpModel"
+    Attribute "Add" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/constraints.py:69:32 - error: Cannot access attribute "session_type" for class "dict[Unknown, Unknown]"
+    Attribute "session_type" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/constraints.py:70:32 - error: Cannot access attribute "batch_id" for class "dict[Unknown, Unknown]"
+    Attribute "batch_id" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/constraints.py:72:39 - error: Cannot access attribute "batch_id" for class "dict[Unknown, Unknown]"
+    Attribute "batch_id" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/constraints.py:80:28 - error: Cannot access attribute "Add" for class "CpModel"
+    Attribute "Add" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/constraints.py:93:28 - error: Cannot access attribute "Add" for class "CpModel"
+    Attribute "Add" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/constraints.py:101:31 - error: Cannot access attribute "session_type" for class "dict[Unknown, Unknown]"
+    Attribute "session_type" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/constraints.py:101:70 - error: Cannot access attribute "resource_type" for class "dict[Unknown, Unknown]"
+    Attribute "resource_type" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/constraints.py:102:32 - error: Cannot access attribute "Add" for class "CpModel"
+    Attribute "Add" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/constraints.py:103:33 - error: Cannot access attribute "session_type" for class "dict[Unknown, Unknown]"
+    Attribute "session_type" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/constraints.py:105:51 - error: Cannot access attribute "resource_type" for class "dict[Unknown, Unknown]"
+    Attribute "resource_type" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/constraints.py:106:36 - error: Cannot access attribute "Add" for class "CpModel"
+    Attribute "Add" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/constraints.py:114:31 - error: Cannot access attribute "session_type" for class "dict[Unknown, Unknown]"
+    Attribute "session_type" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/constraints.py:116:52 - error: Cannot access attribute "capacity" for class "dict[Unknown, Unknown]"
+    Attribute "capacity" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/constraints.py:117:36 - error: Cannot access attribute "Add" for class "CpModel"
+    Attribute "Add" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/constraints.py:118:33 - error: Cannot access attribute "batch_id" for class "dict[Unknown, Unknown]"
+    Attribute "batch_id" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/constraints.py:120:50 - error: Cannot access attribute "capacity" for class "dict[Unknown, Unknown]"
+    Attribute "capacity" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/constraints.py:121:36 - error: Cannot access attribute "Add" for class "CpModel"
+    Attribute "Add" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/constraints.py:128:28 - error: Cannot access attribute "Add" for class "CpModel"
+    Attribute "Add" is unknown (reportAttributeAccessIssue)
+/Users/krishgupta/SchedulAI/backend/app/scheduler/hard_constraints.py
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/hard_constraints.py:34:93 - error: Cannot access attribute "id" for class "dict[Unknown, Unknown]"
+    Attribute "id" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/hard_constraints.py:37:28 - error: Cannot access attribute "Add" for class "CpModel"
+    Attribute "Add" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/hard_constraints.py:37:71 - error: Cannot access attribute "hours_per_week" for class "dict[Unknown, Unknown]"
+    Attribute "hours_per_week" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/hard_constraints.py:44:35 - error: Cannot access attribute "faculty_id" for class "dict[Unknown, Unknown]"
+    Attribute "faculty_id" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/hard_constraints.py:51:28 - error: Cannot access attribute "Add" for class "CpModel"
+    Attribute "Add" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/hard_constraints.py:57:42 - error: Cannot access attribute "session_type" for class "dict[Unknown, Unknown]"
+    Attribute "session_type" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/hard_constraints.py:58:35 - error: Cannot access attribute "section_id" for class "dict[Unknown, Unknown]"
+    Attribute "section_id" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/hard_constraints.py:65:28 - error: Cannot access attribute "Add" for class "CpModel"
+    Attribute "Add" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/hard_constraints.py:73:32 - error: Cannot access attribute "session_type" for class "dict[Unknown, Unknown]"
+    Attribute "session_type" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/hard_constraints.py:74:32 - error: Cannot access attribute "batch_id" for class "dict[Unknown, Unknown]"
+    Attribute "batch_id" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/hard_constraints.py:76:35 - error: Cannot access attribute "batch_id" for class "dict[Unknown, Unknown]"
+    Attribute "batch_id" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/hard_constraints.py:83:28 - error: Cannot access attribute "Add" for class "CpModel"
+    Attribute "Add" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/hard_constraints.py:95:28 - error: Cannot access attribute "Add" for class "CpModel"
+    Attribute "Add" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/hard_constraints.py:102:31 - error: Cannot access attribute "session_type" for class "dict[Unknown, Unknown]"
+    Attribute "session_type" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/hard_constraints.py:102:70 - error: Cannot access attribute "resource_type" for class "dict[Unknown, Unknown]"
+    Attribute "resource_type" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/hard_constraints.py:103:32 - error: Cannot access attribute "Add" for class "CpModel"
+    Attribute "Add" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/hard_constraints.py:104:33 - error: Cannot access attribute "session_type" for class "dict[Unknown, Unknown]"
+    Attribute "session_type" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/hard_constraints.py:106:51 - error: Cannot access attribute "resource_type" for class "dict[Unknown, Unknown]"
+    Attribute "resource_type" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/hard_constraints.py:107:36 - error: Cannot access attribute "Add" for class "CpModel"
+    Attribute "Add" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/hard_constraints.py:114:31 - error: Cannot access attribute "session_type" for class "dict[Unknown, Unknown]"
+    Attribute "session_type" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/hard_constraints.py:116:44 - error: Cannot access attribute "capacity" for class "dict[Unknown, Unknown]"
+    Attribute "capacity" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/hard_constraints.py:117:36 - error: Cannot access attribute "Add" for class "CpModel"
+    Attribute "Add" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/hard_constraints.py:118:33 - error: Cannot access attribute "batch_id" for class "dict[Unknown, Unknown]"
+    Attribute "batch_id" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/hard_constraints.py:120:44 - error: Cannot access attribute "capacity" for class "dict[Unknown, Unknown]"
+    Attribute "capacity" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/hard_constraints.py:121:36 - error: Cannot access attribute "Add" for class "CpModel"
+    Attribute "Add" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/hard_constraints.py:126:40 - error: Cannot access attribute "slot_type" for class "dict[Unknown, Unknown]"
+    Attribute "slot_type" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/hard_constraints.py:127:28 - error: Cannot access attribute "Add" for class "CpModel"
+    Attribute "Add" is unknown (reportAttributeAccessIssue)
+/Users/krishgupta/SchedulAI/backend/app/scheduler/model.py
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/model.py:41:44 - error: Cannot access attribute "NewBoolVar" for class "CpModel"
+    Attribute "NewBoolVar" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/model.py:75:28 - error: Cannot access attribute "Add" for class "CpModel"
+    Attribute "Add" is unknown (reportAttributeAccessIssue)
+/Users/krishgupta/SchedulAI/backend/app/scheduler/objectives.py
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/objectives.py:14:24 - error: Cannot access attribute "Minimize" for class "CpModel"
+    Attribute "Minimize" is unknown (reportAttributeAccessIssue)
+/Users/krishgupta/SchedulAI/backend/app/scheduler/reoptimizer.py
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/reoptimizer.py:17:50 - error: Expression of type "None" cannot be assigned to parameter of type "TimetableSolver"
+    "None" is not assignable to "TimetableSolver" (reportArgumentType)
+/Users/krishgupta/SchedulAI/backend/app/scheduler/soft_constraints.py
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/soft_constraints.py:42:37 - error: Cannot access attribute "faculty_id" for class "dict[Unknown, Unknown]"
+    Attribute "faculty_id" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/soft_constraints.py:46:43 - error: Cannot access attribute "id" for class "dict[Unknown, Unknown]"
+    Attribute "id" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/soft_constraints.py:48:52 - error: Cannot access attribute "day_of_week" for class "dict[Unknown, Unknown]"
+    Attribute "day_of_week" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/soft_constraints.py:52:42 - error: Cannot access attribute "NewIntVar" for class "CpModel"
+    Attribute "NewIntVar" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/soft_constraints.py:55:32 - error: Cannot access attribute "Add" for class "CpModel"
+    Attribute "Add" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/soft_constraints.py:71:31 - error: Cannot access attribute "faculty_id" for class "dict[Unknown, Unknown]"
+    Attribute "faculty_id" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/soft_constraints.py:71:53 - error: Cannot access attribute "day_of_week" for class "dict[Unknown, Unknown]"
+    Attribute "day_of_week" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/soft_constraints.py:74:32 - error: Cannot access attribute "period_number" for class "dict[Unknown, Unknown]"
+    Attribute "period_number" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/soft_constraints.py:91:35 - error: Cannot access attribute "NewBoolVar" for class "CpModel"
+    Attribute "NewBoolVar" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/soft_constraints.py:92:35 - error: Cannot access attribute "NewBoolVar" for class "CpModel"
+    Attribute "NewBoolVar" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/soft_constraints.py:95:28 - error: Cannot access attribute "AddMaxEquality" for class "CpModel"
+    Attribute "AddMaxEquality" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/soft_constraints.py:96:28 - error: Cannot access attribute "AddMaxEquality" for class "CpModel"
+    Attribute "AddMaxEquality" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/soft_constraints.py:99:35 - error: Cannot access attribute "NewBoolVar" for class "CpModel"
+    Attribute "NewBoolVar" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/soft_constraints.py:100:28 - error: Cannot access attribute "AddBoolAnd" for class "CpModel"
+    Attribute "AddBoolAnd" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/soft_constraints.py:101:28 - error: Cannot access attribute "AddBoolOr" for class "CpModel"
+    Attribute "AddBoolOr" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/soft_constraints.py:104:38 - error: Cannot access attribute "NewIntVar" for class "CpModel"
+    Attribute "NewIntVar" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/soft_constraints.py:107:28 - error: Cannot access attribute "Add" for class "CpModel"
+    Attribute "Add" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/soft_constraints.py:118:39 - error: Cannot access attribute "id" for class "dict[Unknown, Unknown]"
+    Attribute "id" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/soft_constraints.py:125:38 - error: Cannot access attribute "NewIntVar" for class "CpModel"
+    Attribute "NewIntVar" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/soft_constraints.py:126:87 - error: Cannot access attribute "id" for class "dict[Unknown, Unknown]"
+    Attribute "id" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/soft_constraints.py:131:44 - error: Cannot access attribute "NewBoolVar" for class "CpModel"
+    Attribute "NewBoolVar" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/soft_constraints.py:131:79 - error: Cannot access attribute "id" for class "dict[Unknown, Unknown]"
+    Attribute "id" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/soft_constraints.py:132:32 - error: Cannot access attribute "AddMaxEquality" for class "CpModel"
+    Attribute "AddMaxEquality" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/soft_constraints.py:134:28 - error: Cannot access attribute "Add" for class "CpModel"
+    Attribute "Add" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/soft_constraints.py:144:32 - error: Cannot access attribute "session_type" for class "dict[Unknown, Unknown]"
+    Attribute "session_type" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/soft_constraints.py:146:31 - error: Cannot access attribute "shift" for class "dict[Unknown, Unknown]"
+    Attribute "shift" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/soft_constraints.py:148:38 - error: Cannot access attribute "NewIntVar" for class "CpModel"
+    Attribute "NewIntVar" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/soft_constraints.py:149:28 - error: Cannot access attribute "Add" for class "CpModel"
+    Attribute "Add" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/soft_constraints.py:156:38 - error: Cannot access attribute "is_emergency" for class "dict[Unknown, Unknown]"
+    Attribute "is_emergency" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/soft_constraints.py:157:38 - error: Cannot access attribute "NewIntVar" for class "CpModel"
+    Attribute "NewIntVar" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/soft_constraints.py:158:28 - error: Cannot access attribute "Add" for class "CpModel"
+    Attribute "Add" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/soft_constraints.py:169:32 - error: Cannot access attribute "preferred_days" for class "dict[Unknown, Unknown]"
+    Attribute "preferred_days" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/soft_constraints.py:170:35 - error: Cannot access attribute "day_of_week" for class "dict[Unknown, Unknown]"
+    Attribute "day_of_week" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/soft_constraints.py:170:65 - error: Cannot access attribute "preferred_days" for class "dict[Unknown, Unknown]"
+    Attribute "preferred_days" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/soft_constraints.py:174:32 - error: Cannot access attribute "preferred_shifts" for class "dict[Unknown, Unknown]"
+    Attribute "preferred_shifts" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/soft_constraints.py:175:35 - error: Cannot access attribute "shift" for class "dict[Unknown, Unknown]"
+    Attribute "shift" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/soft_constraints.py:175:59 - error: Cannot access attribute "preferred_shifts" for class "dict[Unknown, Unknown]"
+    Attribute "preferred_shifts" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/soft_constraints.py:179:46 - error: Cannot access attribute "NewIntVar" for class "CpModel"
+    Attribute "NewIntVar" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/soft_constraints.py:182:32 - error: Cannot access attribute "Add" for class "CpModel"
+    Attribute "Add" is unknown (reportAttributeAccessIssue)
+/Users/krishgupta/SchedulAI/backend/app/scheduler/solver.py
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/solver.py:19:47 - error: Expression of type "None" cannot be assigned to parameter of type "SolverConfig"
+    "None" is not assignable to "SolverConfig" (reportArgumentType)
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/solver.py:67:29 - error: Argument of type "Unknown | None" cannot be assigned to parameter "objective_value" of type "int" in function "__init__"
+    Type "Unknown | None" is not assignable to type "int"
+      "None" is not assignable to "int" (reportArgumentType)
+/Users/krishgupta/SchedulAI/backend/app/scheduler/variables.py
+  /Users/krishgupta/SchedulAI/backend/app/scheduler/variables.py:17:46 - error: Cannot access attribute "NewBoolVar" for class "CpModel"
+    Attribute "NewBoolVar" is unknown (reportAttributeAccessIssue)
+/Users/krishgupta/SchedulAI/backend/app/services/academic_term_service.py
+  /Users/krishgupta/SchedulAI/backend/app/services/academic_term_service.py:51:46 - error: Type "tuple[list[AcademicTerm], int | None]" is not assignable to return type "tuple[list[AcademicTerm], int]"
+    Type "int | None" is not assignable to type "int"
+      "None" is not assignable to "int" (reportReturnType)
+  /Users/krishgupta/SchedulAI/backend/app/services/academic_term_service.py:164:18 - error: Cannot assign to attribute "is_current" for class "AcademicTerm"
+    Expression of type "Literal[False]" cannot be assigned to attribute "is_current" of class "AcademicTerm"
+      "Literal[False]" is not assignable to "Column[bool]" (reportAttributeAccessIssue)
+/Users/krishgupta/SchedulAI/backend/app/services/assignment_derivation_service.py
+  /Users/krishgupta/SchedulAI/backend/app/services/assignment_derivation_service.py:81:54 - error: Argument of type "Column[str]" cannot be assigned to parameter "load_session_type" of type "SessionType" in function "_map_session_type"
+    "Column[str]" is not assignable to "SessionType" (reportArgumentType)
+  /Users/krishgupta/SchedulAI/backend/app/services/assignment_derivation_service.py:107:12 - error: Invalid conditional operand of type "ColumnElement[bool]"
+    Method __bool__ for type "ColumnElement[bool]" returns type "NoReturn" rather than "bool" (reportGeneralTypeIssues)
+  /Users/krishgupta/SchedulAI/backend/app/services/assignment_derivation_service.py:122:12 - error: Invalid conditional operand of type "ColumnElement[bool]"
+    Method __bool__ for type "ColumnElement[bool]" returns type "NoReturn" rather than "bool" (reportGeneralTypeIssues)
+  /Users/krishgupta/SchedulAI/backend/app/services/assignment_derivation_service.py:123:20 - error: Invalid conditional operand of type "Column[UUID]"
+    Method __bool__ for type "Column[UUID]" returns type "NoReturn" rather than "bool" (reportGeneralTypeIssues)
+  /Users/krishgupta/SchedulAI/backend/app/services/assignment_derivation_service.py:144:12 - error: Invalid conditional operand of type "ColumnElement[bool]"
+    Method __bool__ for type "ColumnElement[bool]" returns type "NoReturn" rather than "bool" (reportGeneralTypeIssues)
+  /Users/krishgupta/SchedulAI/backend/app/services/assignment_derivation_service.py:159:12 - error: Invalid conditional operand of type "ColumnElement[bool]"
+    Method __bool__ for type "ColumnElement[bool]" returns type "NoReturn" rather than "bool" (reportGeneralTypeIssues)
+  /Users/krishgupta/SchedulAI/backend/app/services/assignment_derivation_service.py:232:16 - error: Invalid conditional operand of type "ColumnElement[bool]"
+    Method __bool__ for type "ColumnElement[bool]" returns type "NoReturn" rather than "bool" (reportGeneralTypeIssues)
+  /Users/krishgupta/SchedulAI/backend/app/services/assignment_derivation_service.py:240:16 - error: Invalid conditional operand of type "ColumnElement[bool]"
+    Method __bool__ for type "ColumnElement[bool]" returns type "NoReturn" rather than "bool" (reportGeneralTypeIssues)
+  /Users/krishgupta/SchedulAI/backend/app/services/assignment_derivation_service.py:245:59 - error: Invalid conditional operand of type "Column[UUID]"
+    Method __bool__ for type "Column[UUID]" returns type "NoReturn" rather than "bool" (reportGeneralTypeIssues)
+  /Users/krishgupta/SchedulAI/backend/app/services/assignment_derivation_service.py:249:16 - error: Invalid conditional operand of type "ColumnElement[bool]"
+    Method __bool__ for type "ColumnElement[bool]" returns type "NoReturn" rather than "bool" (reportGeneralTypeIssues)
+  /Users/krishgupta/SchedulAI/backend/app/services/assignment_derivation_service.py:254:59 - error: Invalid conditional operand of type "Column[UUID]"
+    Method __bool__ for type "Column[UUID]" returns type "NoReturn" rather than "bool" (reportGeneralTypeIssues)
+  /Users/krishgupta/SchedulAI/backend/app/services/assignment_derivation_service.py:257:16 - error: Invalid conditional operand of type "ColumnElement[bool]"
+    Method __bool__ for type "ColumnElement[bool]" returns type "NoReturn" rather than "bool" (reportGeneralTypeIssues)
+  /Users/krishgupta/SchedulAI/backend/app/services/assignment_derivation_service.py:262:59 - error: Invalid conditional operand of type "Column[UUID]"
+    Method __bool__ for type "Column[UUID]" returns type "NoReturn" rather than "bool" (reportGeneralTypeIssues)
+/Users/krishgupta/SchedulAI/backend/app/services/auth_service.py
+  /Users/krishgupta/SchedulAI/backend/app/services/auth_service.py:17:54 - error: Argument of type "Column[str]" cannot be assigned to parameter "hashed_password" of type "str" in function "verify_password"
+    "Column[str]" is not assignable to "str" (reportArgumentType)
+  /Users/krishgupta/SchedulAI/backend/app/services/auth_service.py:21:77 - error: Expression of type "None" cannot be assigned to parameter of type "str"
+    "None" is not assignable to "str" (reportArgumentType)
+/Users/krishgupta/SchedulAI/backend/app/services/faculty_service.py
+  /Users/krishgupta/SchedulAI/backend/app/services/faculty_service.py:58:36 - error: Type "tuple[list[Faculty], int | None]" is not assignable to return type "tuple[list[Faculty], int]"
+    Type "int | None" is not assignable to type "int"
+      "None" is not assignable to "int" (reportReturnType)
+  /Users/krishgupta/SchedulAI/backend/app/services/faculty_service.py:122:65 - error: Invalid conditional operand of type "Column[date]"
+    Method __bool__ for type "Column[date]" returns type "NoReturn" rather than "bool" (reportGeneralTypeIssues)
+  /Users/krishgupta/SchedulAI/backend/app/services/faculty_service.py:155:63 - error: Invalid conditional operand of type "Column[datetime]"
+    Method __bool__ for type "Column[datetime]" returns type "NoReturn" rather than "bool" (reportGeneralTypeIssues)
+  /Users/krishgupta/SchedulAI/backend/app/services/faculty_service.py:156:56 - error: Invalid conditional operand of type "Column[UUID]"
+    Method __bool__ for type "Column[UUID]" returns type "NoReturn" rather than "bool" (reportGeneralTypeIssues)
+  /Users/krishgupta/SchedulAI/backend/app/services/faculty_service.py:159:17 - error: Cannot assign to attribute "is_archived" for class "Faculty"
+    Expression of type "Literal[True]" cannot be assigned to attribute "is_archived" of class "Faculty"
+      "Literal[True]" is not assignable to "Column[bool]" (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/services/faculty_service.py:160:17 - error: Cannot assign to attribute "is_active" for class "Faculty"
+    Expression of type "Literal[False]" cannot be assigned to attribute "is_active" of class "Faculty"
+      "Literal[False]" is not assignable to "Column[bool]" (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/services/faculty_service.py:161:17 - error: Cannot assign to attribute "archived_at" for class "Faculty"
+    Expression of type "datetime" cannot be assigned to attribute "archived_at" of class "Faculty"
+      "datetime" is not assignable to "Column[datetime]" (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/services/faculty_service.py:162:17 - error: Cannot assign to attribute "archived_by" for class "Faculty"
+    Expression of type "UUID" cannot be assigned to attribute "archived_by" of class "Faculty"
+      "UUID" is not assignable to "Column[UUID]" (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/services/faculty_service.py:194:63 - error: Invalid conditional operand of type "Column[datetime]"
+    Method __bool__ for type "Column[datetime]" returns type "NoReturn" rather than "bool" (reportGeneralTypeIssues)
+  /Users/krishgupta/SchedulAI/backend/app/services/faculty_service.py:195:56 - error: Invalid conditional operand of type "Column[UUID]"
+    Method __bool__ for type "Column[UUID]" returns type "NoReturn" rather than "bool" (reportGeneralTypeIssues)
+  /Users/krishgupta/SchedulAI/backend/app/services/faculty_service.py:198:17 - error: Cannot assign to attribute "is_archived" for class "Faculty"
+    Expression of type "Literal[False]" cannot be assigned to attribute "is_archived" of class "Faculty"
+      "Literal[False]" is not assignable to "Column[bool]" (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/services/faculty_service.py:199:17 - error: Cannot assign to attribute "is_active" for class "Faculty"
+    Expression of type "Literal[True]" cannot be assigned to attribute "is_active" of class "Faculty"
+      "Literal[True]" is not assignable to "Column[bool]" (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/services/faculty_service.py:200:17 - error: Cannot assign to attribute "archived_at" for class "Faculty"
+    Expression of type "None" cannot be assigned to attribute "archived_at" of class "Faculty"
+      "None" is not assignable to "Column[datetime]" (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/services/faculty_service.py:201:17 - error: Cannot assign to attribute "archived_by" for class "Faculty"
+    Expression of type "None" cannot be assigned to attribute "archived_by" of class "Faculty"
+      "None" is not assignable to "Column[UUID]" (reportAttributeAccessIssue)
+/Users/krishgupta/SchedulAI/backend/app/services/load_service.py
+  /Users/krishgupta/SchedulAI/backend/app/services/load_service.py:89:29 - error: Type "tuple[list[FacultyLoad], int | None]" is not assignable to return type "tuple[list[FacultyLoad], int]"
+    Type "int | None" is not assignable to type "int"
+      "None" is not assignable to "int" (reportReturnType)
+  /Users/krishgupta/SchedulAI/backend/app/services/load_service.py:150:54 - error: Invalid conditional operand of type "Column[str]"
+    Method __bool__ for type "Column[str]" returns type "NoReturn" rather than "bool" (reportGeneralTypeIssues)
+  /Users/krishgupta/SchedulAI/backend/app/services/load_service.py:188:53 - error: Invalid conditional operand of type "Column[UUID]"
+    Method __bool__ for type "Column[UUID]" returns type "NoReturn" rather than "bool" (reportGeneralTypeIssues)
+  /Users/krishgupta/SchedulAI/backend/app/services/load_service.py:189:60 - error: Invalid conditional operand of type "Column[datetime]"
+    Method __bool__ for type "Column[datetime]" returns type "NoReturn" rather than "bool" (reportGeneralTypeIssues)
+  /Users/krishgupta/SchedulAI/backend/app/services/load_service.py:192:14 - error: Cannot assign to attribute "is_approved" for class "FacultyLoad"
+    Expression of type "Literal[True]" cannot be assigned to attribute "is_approved" of class "FacultyLoad"
+      "Literal[True]" is not assignable to "Column[bool]" (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/services/load_service.py:193:14 - error: Cannot assign to attribute "approved_by" for class "FacultyLoad"
+    Expression of type "UUID" cannot be assigned to attribute "approved_by" of class "FacultyLoad"
+      "UUID" is not assignable to "Column[UUID]" (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/services/load_service.py:194:14 - error: Cannot assign to attribute "approved_at" for class "FacultyLoad"
+    Expression of type "datetime" cannot be assigned to attribute "approved_at" of class "FacultyLoad"
+      "datetime" is not assignable to "Column[datetime]" (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/services/load_service.py:228:47 - error: Invalid conditional operand of type "Column[UUID]"
+    Method __bool__ for type "Column[UUID]" returns type "NoReturn" rather than "bool" (reportGeneralTypeIssues)
+  /Users/krishgupta/SchedulAI/backend/app/services/load_service.py:271:12 - error: Invalid conditional operand of type "ColumnElement[bool]"
+    Method __bool__ for type "ColumnElement[bool]" returns type "NoReturn" rather than "bool" (reportGeneralTypeIssues)
+  /Users/krishgupta/SchedulAI/backend/app/services/load_service.py:279:16 - error: Invalid conditional operand of type "ColumnElement[bool]"
+    Method __bool__ for type "ColumnElement[bool]" returns type "NoReturn" rather than "bool" (reportGeneralTypeIssues)
+  /Users/krishgupta/SchedulAI/backend/app/services/load_service.py:356:22 - error: "LoadNormalizer" is not defined (reportUndefinedVariable)
+  /Users/krishgupta/SchedulAI/backend/app/services/load_service.py:406:16 - error: Type "list[dict[str, Unknown]]" is not assignable to return type "dict[Unknown, Unknown]"
+    "list[dict[str, Unknown]]" is not assignable to "dict[Unknown, Unknown]" (reportReturnType)
+  /Users/krishgupta/SchedulAI/backend/app/services/load_service.py:449:16 - error: Type "list[dict[str, Unknown]]" is not assignable to return type "dict[Unknown, Unknown]"
+    "list[dict[str, Unknown]]" is not assignable to "dict[Unknown, Unknown]" (reportReturnType)
+  /Users/krishgupta/SchedulAI/backend/app/services/load_service.py:487:16 - error: Type "list[dict[str, Unknown]]" is not assignable to return type "dict[Unknown, Unknown]"
+    "list[dict[str, Unknown]]" is not assignable to "dict[Unknown, Unknown]" (reportReturnType)
+/Users/krishgupta/SchedulAI/backend/app/validators/load_validator.py
+  /Users/krishgupta/SchedulAI/backend/app/validators/load_validator.py:84:20 - error: Operator "<" not supported for types "ArrayLike | float | Number | number[Any, int | float | complex] | Index | Series | Unknown | ArrowExtensionArray | NAType | NaTType | Timestamp | Timedelta | Any | Self@Index | BooleanArray | FloatingArray | IntegerArray | ndarray[_AnyShape, dtype[signedinteger[_64Bit]]] | DatetimeIndex | TimedeltaIndex" and "Literal[0]"
+    Operator "<" not supported for types "Number" and "Literal[0]"
+    Operator "<" not supported for types "NAType" and "Literal[0]"
+    Operator "<" not supported for types "NaTType" and "Literal[0]"
+    Operator "<" not supported for types "Timestamp" and "Literal[0]"
+    Operator "<" not supported for types "Timedelta" and "Literal[0]"
+    Operator "<" not supported for types "ExtensionArray" and "Literal[0]" (reportOperatorIssue)
+  /Users/krishgupta/SchedulAI/backend/app/validators/load_validator.py:84:39 - error: Cannot access attribute "any" for class "bool"
+    Attribute "any" is unknown (reportAttributeAccessIssue)
+/Users/krishgupta/SchedulAI/backend/app/workers/timetable_worker.py
+  /Users/krishgupta/SchedulAI/backend/app/workers/timetable_worker.py:32:44 - error: Cannot access attribute "academic_year" for class "type[TeachingAssignment]"
+    Attribute "academic_year" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/workers/timetable_worker.py:33:44 - error: Cannot access attribute "semester" for class "type[TeachingAssignment]"
+    Attribute "semester" is unknown (reportAttributeAccessIssue)
+  /Users/krishgupta/SchedulAI/backend/app/workers/timetable_worker.py:82:41 - error: "__getitem__" method not defined on type "TimeSlot" (reportIndexIssue)
+  /Users/krishgupta/SchedulAI/backend/app/workers/timetable_worker.py:84:44 - error: "__getitem__" method not defined on type "TimeSlot" (reportIndexIssue)
+  /Users/krishgupta/SchedulAI/backend/app/workers/timetable_worker.py:102:21 - error: Argument of type "UUID" cannot be assigned to parameter "timetable_id" of type "str" in function "create_version"
+    "UUID" is not assignable to "str" (reportArgumentType)
+  /Users/krishgupta/SchedulAI/backend/app/workers/timetable_worker.py:120:51 - error: Cannot access attribute "id" for class "dict[str, str]"
+    Attribute "id" is unknown (reportAttributeAccessIssue)
+217 errors, 0 warnings, 0 informations

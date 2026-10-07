@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+.env
+.env.*
+tests/
+pyright_output*.txt
+.DS_Store

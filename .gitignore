@@ -1,0 +1,70 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+env/
+.venv/
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+__MACOSX/
+Thumbs.db
+
+# Logs
+*.log
+logs/
+outputs/logs/
+
+# Database
+*.db
+*.sqlite
+
+# Test coverage
+htmlcov/
+.coverage
+.pytest_cache/
+.ruff_cache/
+.coverage.*
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.vite/
+
+# Environment
+.env.local
+.env.*
+.env.*.local
+
+# Data - never commit raw source files
+data/raw/*.xlsx
+data/raw/*.xls
+data/raw/*.csv
+
+# Generated outputs
+outputs/timetables/*
+outputs/reports/*
+outputs/validation/*
+!outputs/timetables/.gitkeep
+!outputs/reports/.gitkeep
+!outputs/validation/.gitkeep
+!outputs/logs/.gitkeep
+
+# Docker
+docker-compose.override.yml
