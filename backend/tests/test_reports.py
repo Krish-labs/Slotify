@@ -193,9 +193,15 @@ async def _create_test_timetable(db_session: AsyncSession, user: User) -> tuple:
 async def test_timetable_summary_report(async_client: AsyncClient, db_session: AsyncSession):
     """Test timetable summary report"""
     user = await _create_test_user(db_session)
-    timetable, version, time_slots, faculty1, faculty2, resource1, resource2 = (
-        await _create_test_timetable(db_session, user)
-    )
+    (
+        timetable,
+        version,
+        time_slots,
+        faculty1,
+        faculty2,
+        resource1,
+        resource2,
+    ) = await _create_test_timetable(db_session, user)
 
     response = await async_client.get(
         "/api/v1/reports/timetable-summary",
@@ -206,6 +212,40 @@ async def test_timetable_summary_report(async_client: AsyncClient, db_session: A
     assert data["timetable_id"] == str(timetable.id)
     assert data["version_number"] == 1
     assert data["total_entries"] == 2
+
+
+@pytest.mark.asyncio
+async def test_timetable_summary_report_honors_selected_version(
+    async_client: AsyncClient, db_session: AsyncSession
+):
+    """A report view must not silently replace the user's selected version with the latest one."""
+    user = await _create_test_user(db_session)
+    timetable, version, *_ = await _create_test_timetable(db_session, user)
+    newer = TimetableVersion(
+        timetable_id=timetable.id,
+        version_number=2,
+        status="GENERATED",
+        change_type="FULL_REGENERATION",
+        created_by=user.id,
+    )
+    db_session.add(newer)
+    await db_session.commit()
+
+    latest_response = await async_client.get(
+        "/api/v1/reports/timetable-summary",
+        params={"timetable_id": str(timetable.id)},
+    )
+    assert latest_response.status_code == 200
+    assert latest_response.json()["version_number"] == 2
+    assert latest_response.json()["total_entries"] == 0
+
+    selected_response = await async_client.get(
+        "/api/v1/reports/timetable-summary",
+        params={"timetable_id": str(timetable.id), "version_id": str(version.id)},
+    )
+    assert selected_response.status_code == 200
+    assert selected_response.json()["version_number"] == 1
+    assert selected_response.json()["total_entries"] == 2
 
 
 @pytest.mark.asyncio
@@ -287,9 +327,15 @@ async def test_faculty_load_report(async_client: AsyncClient, db_session: AsyncS
 async def test_conflicts_report(async_client: AsyncClient, db_session: AsyncSession):
     """Test conflicts report"""
     user = await _create_test_user(db_session)
-    timetable, version, time_slots, faculty1, faculty2, resource1, resource2 = (
-        await _create_test_timetable(db_session, user)
-    )
+    (
+        timetable,
+        version,
+        time_slots,
+        faculty1,
+        faculty2,
+        resource1,
+        resource2,
+    ) = await _create_test_timetable(db_session, user)
 
     # The conflict detection is done at the validation level, not DB constraint level.
     # Test with a valid timetable - no conflicts in the base setup
@@ -309,9 +355,15 @@ async def test_conflicts_report(async_client: AsyncClient, db_session: AsyncSess
 async def test_validation_report(async_client: AsyncClient, db_session: AsyncSession):
     """Test validation report"""
     user = await _create_test_user(db_session)
-    timetable, version, time_slots, faculty1, faculty2, resource1, resource2 = (
-        await _create_test_timetable(db_session, user)
-    )
+    (
+        timetable,
+        version,
+        time_slots,
+        faculty1,
+        faculty2,
+        resource1,
+        resource2,
+    ) = await _create_test_timetable(db_session, user)
 
     response = await async_client.get(
         "/api/v1/reports/validation",

@@ -34,6 +34,13 @@ from app.schemas.load import (
     ResourceType,
     SessionType,
 )
+from app.schemas.repair import (
+    ABSOLUTE_MAX_REPAIR_ATTEMPTS,
+    DEFAULT_MAX_REPAIR_ATTEMPTS,
+    RepairAdjustment,
+    RepairAdjustmentKind,
+    RepairAttemptRecord,
+)
 from app.schemas.resource import ResourceBase, ResourceCreate, ResourceResponse, ResourceUpdate
 from app.schemas.section import SectionBase, SectionCreate, SectionResponse, SectionUpdate
 from app.schemas.subject import SubjectBase, SubjectCreate, SubjectResponse, SubjectUpdate
@@ -97,6 +104,11 @@ __all__ = [
     "ResourceCreate",
     "ResourceUpdate",
     "ResourceResponse",
+    "RepairAdjustment",
+    "RepairAdjustmentKind",
+    "RepairAttemptRecord",
+    "DEFAULT_MAX_REPAIR_ATTEMPTS",
+    "ABSOLUTE_MAX_REPAIR_ATTEMPTS",
     "SectionBase",
     "SectionCreate",
     "SectionUpdate",

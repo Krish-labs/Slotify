@@ -18,7 +18,7 @@ class AcademicTermService:
         """Serialize date/datetime objects for JSON storage"""
         result: dict[str, Any] = {}
         for k, v in data.items():
-            if isinstance(v, (date, datetime)):
+            if isinstance(v, date | datetime):
                 result[k] = v.isoformat()
             elif isinstance(v, UUID):
                 result[k] = str(v)

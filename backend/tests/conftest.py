@@ -17,7 +17,7 @@ from sqlalchemy.pool import NullPool, StaticPool
 # isolated in-memory SQLite engine whose single shared connection keeps the
 # schema alive for the whole test function (NullPool would hand every new
 # connection an empty database).
-os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite://")
+os.environ["DATABASE_URL"] = "sqlite+aiosqlite://"
 
 from app.core.config import settings
 from app.database.connection import Base, get_db

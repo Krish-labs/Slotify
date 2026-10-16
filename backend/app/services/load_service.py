@@ -27,7 +27,7 @@ class LoadService:
 
         result: dict[str, Any] = {}
         for k, v in data.items():
-            if isinstance(v, (date, datetime)):
+            if isinstance(v, date | datetime):
                 result[k] = v.isoformat()
             elif isinstance(v, UUID):
                 result[k] = str(v)
@@ -78,7 +78,7 @@ class LoadService:
 
         # Get total count
         count_query = select(func.count()).select_from(query.subquery())
-        total = await self.db.scalar(count_query)
+        total = int(await self.db.scalar(count_query) or 0)
 
         # Apply pagination
         query = query.offset((page - 1) * page_size).limit(page_size)

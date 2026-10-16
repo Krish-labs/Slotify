@@ -24,6 +24,7 @@ class HardConstraints:
         # (assignment_id, resource_id, first_time_slot_id) -> 1 iff a multi-period session
         # starts there. Only populated for assignments with session_duration > 1.
         self.block_starts: dict[tuple[UUID, UUID, UUID], cp_model.IntVar] = {}
+        self.two_hour_grid = False
 
     def set_data(self, assignments: list, resources: list, time_slots: list):
         self.assignment_map = {a.id: a for a in assignments}
@@ -31,6 +32,7 @@ class HardConstraints:
         self.time_slot_map = {t.id: t for t in time_slots}
 
     def apply_all(self):
+        self._assignment_shape()
         self._session_blocks()
         self._assignment_coverage()
         self._faculty_conflict()
@@ -39,6 +41,72 @@ class HardConstraints:
         self._resource_suitability()
         self._template_compliance()
         self._parallel_batches()
+        self._daily_class_attendance()
+
+    def _assignment_shape(self):
+        """Reject practical assignments that cannot identify their students."""
+        for assignment in self.assignment_map.values():
+            if assignment.session_type == "PRACTICAL" and not assignment.batch_id:
+                self.model.AddBoolOr([])
+
+    def _daily_class_attendance(self):
+        """Keep section attendance within six hours per day.
+
+        The institutional two-hour grid additionally forbids using periods 1
+        and 4 together. Older hourly templates use actual slot durations when
+        available and otherwise treat one period as one hour.
+        """
+        by_section: dict[tuple, dict[int, list]] = defaultdict(lambda: defaultdict(list))
+        for (a_id, _r_id, t_id), var in self.variables.items():
+            assignment = self.assignment_map[a_id]
+            slot = self.time_slot_map[t_id]
+            by_section[(assignment.section_id, slot.day_of_week)][slot.period_number].append(var)
+
+        if not self.two_hour_grid:
+            return
+        for (section_id, day), periods in by_section.items():
+            occupied = []
+            for period, candidates in periods.items():
+                busy = self.model.NewBoolVar(f"class_busy_{section_id}_{day}_{period}")
+                self.model.AddMaxEquality(busy, candidates)
+                occupied.append(busy)
+                periods[period] = [busy]
+            self.model.Add(sum(occupied) <= 3)
+            if 1 in periods and 4 in periods:
+                self.model.Add(periods[1][0] + periods[4][0] <= 1)
+
+    def _three_batch_practicals(self):
+        """Every practical block occupies exactly one batch A, B and C."""
+        practicals = [a for a in self.assignment_map.values() if a.session_type == "PRACTICAL"]
+        practical_groups: dict[tuple, list] = defaultdict(list)
+        for assignment in practicals:
+            practical_groups[(assignment.section_id, assignment.subject_id)].append(assignment)
+        for (section, subject), members in practical_groups.items():
+            # Missing or ambiguous batch attribution makes a real schedule
+            # infeasible instead of quietly treating labs as section-wide.
+            if len({a.batch_id for a in members}) != 3 or None in {a.batch_id for a in members}:
+                self.model.AddBoolOr([])
+                continue
+            per_batch = {
+                batch: sum(a.hours_per_week for a in members if a.batch_id == batch)
+                for batch in {a.batch_id for a in members}
+            }
+            if len(set(per_batch.values())) != 1:
+                self.model.AddBoolOr([])
+                continue
+            occupancy: dict[tuple, list] = defaultdict(list)
+            for (a_id, _r_id, t_id), var in self.variables.items():
+                a = self.assignment_map[a_id]
+                if (
+                    a.session_type == "PRACTICAL"
+                    and a.section_id == section
+                    and a.subject_id == subject
+                ):
+                    occupancy[(a.batch_id, t_id)].append(var)
+            for slot in self.time_slot_map:
+                groups = [sum(occupancy.get((batch, slot), [])) for batch in per_batch]
+                for group in groups[1:]:
+                    self.model.Add(group == groups[0])
 
     def _session_blocks(self):
         """Multi-period sessions: ``session_duration`` adjacent periods, same day, same room.

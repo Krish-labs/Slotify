@@ -15,12 +15,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
 
 from app.database.connection import AsyncSessionLocal
-from app.processors.load_normalizer import LoadNormalizer
 from app.processors.assignment_builder import AssignmentBuilder
 from app.processors.batch_processor import BatchProcessor
-from app.processors.section_processor import SectionProcessor
 from app.processors.resource_processor import ResourceProcessor
-from app.database.models.faculty_load import FacultyLoad
 from app.database.models.section import Section
 from sqlalchemy import select
 

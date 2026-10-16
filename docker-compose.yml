@@ -1,3 +1,5 @@
+name: schedulai
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -54,9 +56,14 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - APP_ENV=development
       - DEBUG=true
+      # Development-only secret, explicit so production can never inherit a
+      # default. Rejected at startup when APP_ENV=production.
+      - SECRET_KEY=dev-only-local-insecure-do-not-use-in-production
+      # Local prototype only; production overlay replaces this environment.
+      - LOCAL_AUTH_DISABLED=true
       - API_CORS_ORIGINS=["http://localhost:5173","http://localhost:3000"]
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     volumes:
       - ./backend:/app
       - ./data:/app/data
@@ -72,16 +79,20 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
+      # Development uses the Vite HMR server. Production uses Dockerfile
+      # (static build served by Nginx) via docker-compose.prod.yml.
+      dockerfile: Dockerfile.dev
     container_name: schedulai-frontend
     ports:
-      - "5173:5173"
+      - "127.0.0.1:5173:5173"
     volumes:
       - ./frontend:/app
       - /app/node_modules
     environment:
       # Vite proxies /api to the backend container (localhost would be this container).
       - VITE_PROXY_TARGET=http://backend:8000
+      # Local prototype only; production uses the static authenticated build.
+      - VITE_AUTH_DISABLED=true
     depends_on:
       - backend
 

@@ -56,8 +56,8 @@ async def test_role_permissions_match_canonical_mapping(db):
 
 
 async def test_seed_is_idempotent(db):
-    await seed(db, "admin@example.com", "pw-123456")
-    await seed(db, "admin@example.com", "pw-123456")
+    await seed(db, "admin@example.com", "pw-1234567890")
+    await seed(db, "admin@example.com", "pw-1234567890")
 
     assert await _count(db, Permission) == len(PermissionEnum)
     assert await _count(db, Role) == len(RoleEnum)
@@ -65,12 +65,12 @@ async def test_seed_is_idempotent(db):
 
 
 async def test_admin_user_gets_admin_role_and_hashed_password(db):
-    await seed(db, "admin@example.com", "pw-123456")
+    await seed(db, "admin@example.com", "pw-1234567890")
 
     user = (await db.execute(select(User).options(selectinload(User.roles)))).scalar_one()
     assert [r.name for r in user.roles] == ["ADMIN"]
-    assert user.hashed_password != "pw-123456"
-    assert verify_password("pw-123456", user.hashed_password)
+    assert user.hashed_password != "pw-1234567890"
+    assert verify_password("pw-1234567890", user.hashed_password)
 
 
 async def test_admin_requires_both_email_and_password(db):

@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Building2, Monitor, Cpu, Plus, Edit, Trash2, Shield, Search, AlertCircle } from 'lucide-react';
+import { Building2, Monitor, Cpu, Shield, Search } from 'lucide-react';
 import { resourceApi } from '../../api';
 import type { Resource, ResourceListResponse } from '../../api/types';
+import { EmptyState, ErrorState, LoadingState } from '../../components/ui/States';
+import { DEMO_MODE } from '../../demo/mode';
 
 export function Resources() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
 
-  const { data: resourcesData, isLoading, error } = useQuery<ResourceListResponse>({
+  const { data: resourcesData, isLoading, error, refetch } = useQuery<ResourceListResponse>({
     queryKey: ['resources'],
     queryFn: () => resourceApi.list({ page_size: 100 }),
   });
@@ -54,11 +56,8 @@ export function Resources() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Resources</h1>
           <p className="text-gray-500">Manage classrooms, labs, and equipment</p>
+          {DEMO_MODE && <p className="mt-1 text-sm font-semibold text-amber-800">DEMO DATA · Read-only fixture resources.</p>}
         </div>
-        <button className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">
-          <Plus className="w-4 h-4 mr-2" />
-          Add Resource
-        </button>
       </div>
 
       <div className="bg-white rounded-lg shadow">
@@ -86,19 +85,19 @@ export function Resources() {
         </div>
 
         <div className="overflow-x-auto">
-          {isLoading ? (
-            <div className="p-8 text-center text-gray-500">Loading resources...</div>
-          ) : error ? (
-            <div className="p-8 text-center">
-              <AlertCircle className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500">Unable to load resources. The resources API is not yet implemented.</p>
-              <p className="text-sm text-gray-400 mt-2">Please check backend implementation.</p>
-            </div>
-          ) : (
+           {isLoading ? (
+             <LoadingState label="Loading resources" />
+           ) : error ? (
+             <ErrorState
+               title="Resources did not load"
+               description="The resource service failed. No fallback count or rows are shown."
+               retry={<button className="min-h-[44px] border border-[var(--rule-strong)] px-4 py-2 font-semibold" onClick={() => void refetch()}>Retry resources</button>}
+             />
+           ) : (
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  {['Name', 'Type', 'Capacity', 'Building', 'Floor', 'Room', 'Emergency', 'Actions'].map((header) => (
+                   {['Name', 'Type', 'Capacity', 'Building', 'Floor', 'Room', 'Emergency'].map((header) => (
                     <th key={header} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       {header}
                     </th>
@@ -108,8 +107,8 @@ export function Resources() {
               <tbody className="divide-y divide-gray-200">
                 {filteredResources.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
-                      No resources found
+                     <td colSpan={7}>
+                       <EmptyState title="No resources found" description="No resources match the current search and type filter." />
                     </td>
                   </tr>
                 ) : (
@@ -123,9 +122,9 @@ export function Resources() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">{resource.capacity}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900">{resource.building || '—'}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900">{resource.floor || '—'}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900">{resource.room_number || '—'}</td>
+                       <td className="px-4 py-3 text-sm text-gray-900">{resource.building || 'Not set'}</td>
+                       <td className="px-4 py-3 text-sm text-gray-900">{resource.floor || 'Not set'}</td>
+                       <td className="px-4 py-3 text-sm text-gray-900">{resource.room_number || 'Not set'}</td>
                       <td className="px-4 py-3 text-sm">
                         {resource.is_emergency ? (
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
@@ -135,12 +134,6 @@ export function Resources() {
                         ) : (
                           <span className="text-gray-400">Normal</span>
                         )}
-                      </td>
-                      <td className="px-4 py-3 text-sm">
-                        <div className="flex items-center space-x-2">
-                          <button className="text-blue-600 hover:text-blue-900"><Edit className="w-4 h-4" /></button>
-                          <button className="text-red-600 hover:text-red-900"><Trash2 className="w-4 h-4" /></button>
-                        </div>
                       </td>
                     </tr>
                   ))

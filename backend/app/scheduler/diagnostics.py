@@ -38,6 +38,10 @@ def diagnose(input_data: SolverInput) -> list[str]:
                 f"No room fits {label(a)}: needs capacity {required_strength(a)} "
                 f"(and a suitable room type); largest room seats {largest}"
             )
+        if input_data.two_hour_grid and a.session_type == "PRACTICAL" and not a.required_lab_type:
+            messages.append(
+                f"{label(a).capitalize()} needs an explicit SOFTWARE_LAB or HARDWARE_LAB classification"
+            )
         if a.hours_per_week > n_slots:
             messages.append(
                 f"{label(a).capitalize()} needs {a.hours_per_week}h but only "

@@ -1,0 +1,99 @@
+# Production overlay: docker compose -f docker-compose.yml -f docker-compose.prod.yml up
+#
+# Requires .env.prod next to this file (see .env.prod.example). The base
+# file stays development-oriented; this overlay replaces every dev-only
+# value. It never bakes secrets: all credentials come from .env.prod,
+# which is Git-ignored and never committed.
+#
+# Merge semantics: Compose merges list keys across files, so every list
+# that must not inherit development entries uses `!override` to replace the
+# base value outright. Without it, published ports, bind mounts and dev
+# environment entries would leak into production.
+#
+# Existing data warning: postgres_data is reused as-is. POSTGRES_PASSWORD
+# only applies at first volume initialization; if the volume was created
+# with the development password, either keep that password in .env.prod
+# for the migration run or follow the documented migration plan before
+# switching (see .env.prod.example). Never change it silently.
+
+services:
+  postgres:
+    environment: !override
+      - POSTGRES_DB=${POSTGRES_DB:?POSTGRES_DB is required in .env.prod}
+      - POSTGRES_USER=${POSTGRES_USER:?POSTGRES_USER is required in .env.prod}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required in .env.prod}
+    # Private to the application network; no host port publishing.
+    ports: !override []
+    restart: unless-stopped
+
+  redis:
+    # Password-protected; the backend authenticates via REDIS_URL in .env.prod.
+    command: redis-server --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required in .env.prod}
+    ports: !override []
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+
+  migrate:
+    env_file:
+      - .env.prod
+    environment: !override
+      - APP_ENV=production
+      - DEBUG=false
+
+  backend:
+    env_file:
+      - .env.prod
+    environment: !override
+      - APP_ENV=production
+      - DEBUG=false
+      # Shared Redis state is mandatory with multiple workers: startup and
+      # requests fail loudly instead of silently splitting revocation data.
+      - AUTH_STATE_BACKEND=redis
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
+    # Nginx is the only public entry point; the backend remains reachable on
+    # the private Compose network as backend:8000.
+    ports: !override []
+    restart: unless-stopped
+    # No bind mounts: the release image is immutable at runtime.
+    volumes: !override []
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request;urllib.request.urlopen('http://localhost:8000/api/v1/readyz', timeout=3)\"",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    depends_on: !override
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports: !override ["8080:80"]
+    restart: unless-stopped
+    volumes: !override []
+    environment: !override []
+    depends_on: !override
+      - backend
+
+  worker:
+    env_file:
+      - .env.prod
+    environment: !override
+      - APP_ENV=production
+      - DEBUG=false
+    restart: unless-stopped
+    volumes: !override []
+    depends_on: !override
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy

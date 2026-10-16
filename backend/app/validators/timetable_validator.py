@@ -2,6 +2,8 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any
 
+from app.scheduler.rules import is_section_level
+
 
 @dataclass
 class ValidationResult:
@@ -17,7 +19,15 @@ class TimetableValidator:
         self.warnings = []
         self.violations = defaultdict(int)
 
-    def validate(self, entries: list[dict], required_hours: dict | None = None) -> ValidationResult:
+    def validate(
+        self,
+        entries: list[dict],
+        required_hours: dict | None = None,
+        *,
+        check_resource_compatibility: bool = False,
+        blocked_faculty_slots: set[tuple[Any, Any]] | None = None,
+        blocked_resource_slots: set[tuple[Any, Any]] | None = None,
+    ) -> ValidationResult:
         """Validate entries independently of the solver.
 
         ``required_hours`` maps assignment_id -> hours_per_week. When given, every
@@ -34,6 +44,12 @@ class TimetableValidator:
         self._check_session_blocks(entries)
         self._check_parallel_batches(entries)
         self._check_assignment_coverage(entries, required_hours)
+        self._check_two_hour_grid(entries)
+        self._check_slot_availability(
+            entries, blocked_faculty_slots or set(), blocked_resource_slots or set()
+        )
+        if check_resource_compatibility:
+            self._check_resource_compatibility(entries)
         self._check_soft_constraints(entries)
 
         return ValidationResult(
@@ -42,6 +58,26 @@ class TimetableValidator:
             warnings=self.warnings,
             violations=dict(self.violations),
         )
+
+    def _check_slot_availability(
+        self,
+        entries: list[dict],
+        blocked_faculty_slots: set[tuple[Any, Any]],
+        blocked_resource_slots: set[tuple[Any, Any]],
+    ) -> None:
+        for entry in entries:
+            if (entry["faculty_id"], entry["time_slot_id"]) in blocked_faculty_slots:
+                self.errors.append(
+                    f"Faculty {entry['faculty_id']} is unavailable at time slot "
+                    f"{entry['time_slot_id']}"
+                )
+                self.violations["faculty_unavailable"] += 1
+            if (entry["resource_id"], entry["time_slot_id"]) in blocked_resource_slots:
+                self.errors.append(
+                    f"Resource {entry['resource_id']} is unavailable at time slot "
+                    f"{entry['time_slot_id']}"
+                )
+                self.violations["resource_unavailable"] += 1
 
     def _check_session_blocks(self, entries: list[dict]):
         """Multi-period sessions must be whole blocks of adjacent periods in one room.
@@ -141,9 +177,15 @@ class TimetableValidator:
         """
         section_wide = defaultdict(list)
         per_batch = defaultdict(list)
+        batch_occupancy = defaultdict(list)
         for entry in entries:
             slot = entry["time_slot_id"]
-            if entry["session_type"] == "LECTURE" or not entry.get("batch_id"):
+            if entry["session_type"] == "PRACTICAL" and not entry.get("batch_id"):
+                self.errors.append(f"Practical assignment {entry['assignment_id']} has no batch")
+                self.violations["practical_batch_missing"] += 1
+            if entry.get("batch_id"):
+                batch_occupancy[(entry["section_id"], slot, entry["batch_id"])].append(entry)
+            if is_section_level(entry):
                 section_wide[(entry["section_id"], slot)].append(entry)
             else:
                 per_batch[(entry["section_id"], slot, entry["batch_id"])].append(entry)
@@ -170,6 +212,16 @@ class TimetableValidator:
                     f"while section {section_id} has a section-wide session"
                 )
                 self.violations["section_batch_conflict"] += 1
+
+        # A project is section-wide even if stale data still carries a batch ID.
+        # Preserve the direct same-batch diagnostic while applying the stronger
+        # section-wide conflict rule above.
+        for (section_id, slot, batch_id), items in batch_occupancy.items():
+            if len(items) > 1 and any(item["session_type"] == "PROJECT" for item in items):
+                self.errors.append(
+                    f"Batch conflict: batch {batch_id} has {len(items)} entries at time slot {slot}"
+                )
+                self.violations["batch_conflict"] += 1
 
     def _check_resource_conflicts(self, entries: list[dict]):
         resource_slot = defaultdict(list)
@@ -216,6 +268,77 @@ class TimetableValidator:
                     f"scheduled {actual}h, required {required}h"
                 )
                 self.violations["assignment_coverage"] += 1
+
+    def _check_two_hour_grid(self, entries: list[dict]):
+        """Recheck institutional attendance and room compatibility after solving."""
+        if not any(e.get("two_hour_grid") for e in entries):
+            return
+        by_day = defaultdict(set)
+        for entry in entries:
+            if not entry.get("two_hour_grid"):
+                self.errors.append("Mixed time-slot grids in a single timetable version")
+                self.violations["time_grid"] += 1
+                continue
+            period = entry.get("period_number")
+            if entry.get("day_of_week") not in range(6) or period not in range(1, 5):
+                self.errors.append(f"Invalid two-hour slot for assignment {entry['assignment_id']}")
+                self.violations["time_grid"] += 1
+            by_day[(entry["section_id"], entry["day_of_week"])].add(period)
+            room_type = entry.get("resource_type")
+            session_type = entry["session_type"]
+            expected = (
+                entry.get("required_lab_type") if session_type == "PRACTICAL" else "CLASSROOM"
+            )
+            if session_type == "PRACTICAL":
+                if room_type not in ("SOFTWARE_LAB", "HARDWARE_LAB") or not expected:
+                    self.errors.append(
+                        f"Unclassified practical lab for assignment {entry['assignment_id']}"
+                    )
+                    self.violations["lab_type"] += 1
+                elif expected != room_type:
+                    self.errors.append(
+                        f"Incompatible practical lab for assignment {entry['assignment_id']}"
+                    )
+                    self.violations["lab_type"] += 1
+            elif room_type != expected:
+                self.errors.append(
+                    f"Non-classroom theory/tutorial/project room for assignment {entry['assignment_id']}"
+                )
+                self.violations["room_type"] += 1
+
+        for (section, day), periods in by_day.items():
+            if len(periods) > 3 or {1, 4} <= periods:
+                self.errors.append(
+                    f"Class attendance exceeds six hours or spans slots 1 and 4: section {section}, day {day}"
+                )
+                self.violations["class_daily_limit"] += 1
+
+    def _check_resource_compatibility(self, entries: list[dict]):
+        """Validate room type even when a timetable uses reference-hour slots."""
+        if any(entry.get("two_hour_grid") for entry in entries) or not any(
+            "resource_type" in entry for entry in entries
+        ):
+            return
+        for entry in entries:
+            resource_type = entry.get("resource_type")
+            expected = (
+                entry.get("required_lab_type")
+                if entry["session_type"] == "PRACTICAL"
+                else "CLASSROOM"
+            )
+            if entry["session_type"] == "PRACTICAL" and not expected:
+                continue
+            if not resource_type or not expected:
+                self.errors.append(
+                    f"Resource type is missing for assignment {entry['assignment_id']}"
+                )
+                self.violations["resource_type"] += 1
+            elif resource_type != expected:
+                self.errors.append(
+                    f"Incompatible resource for assignment {entry['assignment_id']}: "
+                    f"expected {expected}, got {resource_type}"
+                )
+                self.violations["resource_type"] += 1
 
     def _check_soft_constraints(self, entries: list[dict]):
         # Faculty day distribution

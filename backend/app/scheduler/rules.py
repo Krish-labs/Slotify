@@ -9,25 +9,34 @@ LECTURE = "LECTURE"
 CLASSROOM = "CLASSROOM"
 
 
+def _get(assignment, name: str, default=None):
+    if isinstance(assignment, dict):
+        return assignment.get(name, default)
+    return getattr(assignment, name, default)
+
+
 def is_section_level(assignment) -> bool:
     """True if the session occupies the whole section.
 
-    Lectures always do. Any other session without a batch (e.g. a section-wide tutorial)
-    does too. Batch-level sessions (labs, batch tutorials/projects) occupy one batch.
+    Lectures and project/PBL sessions always do. Any other session without a batch
+    (e.g. a section-wide tutorial) does too. Batch-level practicals and tutorials
+    occupy one batch.
     """
-    return assignment.session_type == LECTURE or not getattr(assignment, "batch_id", None)
+    return _get(assignment, "session_type") in {LECTURE, "PROJECT"} or not _get(
+        assignment, "batch_id"
+    )
 
 
 def required_strength(assignment) -> int:
     """Number of students that must fit in the room."""
     if is_section_level(assignment):
-        return getattr(assignment, "section_strength", 0) or 0
-    return getattr(assignment, "batch_strength", 0) or 0
+        return _get(assignment, "section_strength", 0) or 0
+    return _get(assignment, "batch_strength", 0) or 0
 
 
 def session_duration(assignment) -> int:
     """Consecutive periods per session (1 for ordinary sessions, e.g. 2 for a 2-period lab)."""
-    return max(1, getattr(assignment, "session_duration", 1) or 1)
+    return max(1, _get(assignment, "session_duration", 1) or 1)
 
 
 def consecutive_windows(time_slots, duration: int) -> list[tuple]:
@@ -77,10 +86,13 @@ def parallel_batch_groups(assignments) -> list[list]:
 
 def resource_fits(assignment, resource) -> bool:
     """Whether ``resource`` can host ``assignment`` (type and capacity)."""
-    if assignment.session_type == LECTURE and resource.resource_type != CLASSROOM:
+    session_type = _get(assignment, "session_type")
+    resource_type = _get(resource, "resource_type")
+    capacity = _get(resource, "capacity", 0)
+    if session_type in {LECTURE, "TUTORIAL", "PROJECT"} and resource_type != CLASSROOM:
         return False
-    if assignment.session_type == "PRACTICAL":
-        required_type = getattr(assignment, "required_lab_type", None)
-        if required_type and resource.resource_type != required_type:
+    if session_type == "PRACTICAL":
+        required_type = _get(assignment, "required_lab_type")
+        if required_type and resource_type != required_type:
             return False
-    return bool(required_strength(assignment) <= resource.capacity)
+    return bool(required_strength(assignment) <= capacity)

@@ -4,6 +4,14 @@ import type {
   AcademicTermListResponse,
   Faculty,
   FacultyListResponse,
+  Subject,
+  SubjectListResponse,
+  AcademicClass,
+  AcademicClassListResponse,
+  Section,
+  SectionListResponse,
+  Batch,
+  BatchListResponse,
   FacultyLoad,
   FacultyLoadListResponse,
   FacultyLoadImportPreview,
@@ -17,7 +25,16 @@ import type {
   TimetableVersionWithEntries,
   TimetableGenerateResponse,
   TimetableValidationResponse,
+  TimetableRepairRequest,
+  TimetableRepairResponse,
   TimetableListResponse,
+  TimetableCreateRequest,
+  GenerationReadinessResponse,
+  WorkbookReadinessResponse,
+  TimetableTemplate,
+  TimeSlot,
+  TimeSlotCreate,
+  TemplateCreate,
   Leave,
   LeaveListResponse,
   Substitution,
@@ -29,15 +46,32 @@ import type {
   TeachingAssignment,
   AssignmentDerivationResult,
   AssignmentDerivationPreview,
+  LoadSourceListResponse,
+  LoadSourceRow,
+  LoadSourceRowDraft,
+  LoadSourceImportResult,
+  LoadSourceApprovalResponse,
+  TimetableSummaryReport,
+  FacultyLoadReport,
+  ResourceUtilizationReport,
+  ConflictReport,
+  ValidationReport,
 } from './types';
 
 const extractData = <T>(promise: Promise<{ data: T }>) => promise.then((res) => res.data);
 
 export const authApi = {
   login: (credentials: LoginCredentials) =>
-    extractData(apiClient.post<TokenResponse>('/auth/login', credentials)),
+    extractData(
+      apiClient.post<TokenResponse>(
+        '/auth/login',
+        new URLSearchParams({ username: credentials.email, password: credentials.password }),
+        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+      )
+    ),
   refresh: () => extractData(apiClient.post<TokenResponse>('/auth/refresh')),
   me: () => extractData(apiClient.get<UserResponse>('/auth/me')),
+  logout: () => extractData(apiClient.post('/auth/logout')),
 };
 
 export const academicTermApi = {
@@ -63,7 +97,7 @@ export const facultyApi = {
   }) => extractData(apiClient.get<FacultyListResponse>('/faculty', { params })),
   get: (id: string, includeArchived?: boolean) =>
     extractData(apiClient.get<Faculty>(`/faculty/${id}`, { params: { include_archived: includeArchived } })),
-  create: (data: Omit<Faculty, 'id' | 'created_at' | 'updated_at'>) =>
+  create: (data: Omit<Faculty, 'id' | 'created_at' | 'updated_at' | 'max_hours_per_week' | 'is_active'> & { max_hours_per_week?: number; is_active?: boolean; phone?: string | null; joining_date?: string | null }) =>
     extractData(apiClient.post<Faculty>('/faculty', data)),
   update: (id: string, data: Partial<Faculty>) =>
     extractData(apiClient.put<Faculty>(`/faculty/${id}`, data)),
@@ -79,7 +113,43 @@ export const facultyApi = {
     ),
 };
 
+export const subjectApi = {
+  list: (params?: { page?: number; page_size?: number; search?: string; semester?: number; is_active?: boolean }) =>
+    extractData(apiClient.get<SubjectListResponse>('/subjects', { params })),
+  create: (data: Omit<Subject, 'id' | 'created_at' | 'updated_at' | 'is_active'>) =>
+    extractData(apiClient.post<Subject>('/subjects', data)),
+};
+
+export const classApi = {
+  list: (params?: { page?: number; page_size?: number; search?: string; academic_year?: string; is_active?: boolean }) =>
+    extractData(apiClient.get<AcademicClassListResponse>('/classes', { params })),
+  create: (data: Omit<AcademicClass, 'id' | 'created_at' | 'updated_at' | 'is_active'>) =>
+    extractData(apiClient.post<AcademicClass>('/classes', data)),
+};
+
+export const sectionApi = {
+  list: (params?: { page?: number; page_size?: number; class_id?: string; is_active?: boolean }) =>
+    extractData(apiClient.get<SectionListResponse>('/sections', { params })),
+  create: (data: Omit<Section, 'id' | 'created_at' | 'updated_at' | 'is_active'>) =>
+    extractData(apiClient.post<Section>('/sections', data)),
+};
+
+export const batchApi = {
+  list: (params?: { page?: number; page_size?: number; section_id?: string; is_active?: boolean }) =>
+    extractData(apiClient.get<BatchListResponse>('/batches', { params })),
+  create: (data: Omit<Batch, 'id' | 'created_at' | 'updated_at' | 'is_active'>) =>
+    extractData(apiClient.post<Batch>('/batches', data)),
+};
+
 export const loadApi = {
+  sourceList: (semester?: string) =>
+    extractData(apiClient.get<LoadSourceListResponse>('/load/source', { params: { semester } })),
+  sourceCreate: (data: LoadSourceRowDraft) =>
+    extractData(apiClient.post<LoadSourceRow>('/load/source', data)),
+  sourceUpdate: (id: string, data: Partial<LoadSourceRowDraft>) =>
+    extractData(apiClient.put<LoadSourceRow>(`/load/source/${id}`, data)),
+  sourceDelete: (id: string) => extractData(apiClient.delete(`/load/source/${id}`)),
+  sourceApprove: (id: string) => extractData(apiClient.post<LoadSourceApprovalResponse>(`/load/source/${id}/approve`)),
   list: (params?: {
     page?: number;
     page_size?: number;
@@ -112,7 +182,7 @@ export const loadApi = {
     const formData = new FormData();
     formData.append('file', file);
     return extractData(
-      apiClient.post<FacultyLoadImportResult>('/load/import', formData, {
+      apiClient.post<FacultyLoadImportResult | LoadSourceImportResult>('/load/import', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
     );
@@ -162,9 +232,20 @@ export const resourceApi = {
 export const timetableApi = {
   list: () => extractData(apiClient.get<TimetableListResponse>('/timetable')),
   get: (id: string) => extractData(apiClient.get<Timetable>(`/timetable/${id}`)),
-  generate: (id: string, requestedBy?: string) =>
-    extractData(apiClient.post<TimetableGenerateResponse>(`/timetable/${id}/generate`, { requested_by: requestedBy })),
-  validate: (id: string) => extractData(apiClient.post<TimetableValidationResponse>(`/timetable/${id}/validate`)),
+  create: (data: TimetableCreateRequest) =>
+    extractData(apiClient.post<Omit<Timetable, 'created_at' | 'updated_at' | 'approved_by' | 'approved_at' | 'generated_by'>>('/timetable', data)),
+  readiness: (id: string) =>
+    extractData(apiClient.get<GenerationReadinessResponse>(`/timetable/${id}/readiness`)),
+  generate: (id: string) =>
+    extractData(apiClient.post<TimetableGenerateResponse>(`/timetable/${id}/generate`)),
+  workbookReadiness: (id: string) =>
+    extractData(apiClient.get<WorkbookReadinessResponse>(`/timetable/${id}/workbook-readiness`)),
+  generateFromWorkbook: (id: string) =>
+    extractData(apiClient.post<TimetableGenerateResponse>(`/timetable/${id}/generate-source`)),
+  validate: (id: string, versionId?: string) =>
+    extractData(apiClient.post<TimetableValidationResponse>(`/timetable/${id}/validate`, null, { params: { version_id: versionId } })),
+  repair: (id: string, data: TimetableRepairRequest) =>
+    extractData(apiClient.post<TimetableRepairResponse>(`/timetable/${id}/repair`, data)),
   listVersions: (id: string) =>
     extractData(apiClient.get<{ versions: TimetableVersion[] }>(`/timetable/${id}/versions`)),
   getVersion: (timetableId: string, versionId: string) =>
@@ -179,16 +260,41 @@ export const timetableApi = {
     extractData(apiClient.post(`/timetable/${timetableId}/versions/${versionId}/publish`)),
   archiveVersion: (timetableId: string, versionId: string) =>
     extractData(apiClient.post(`/timetable/${timetableId}/versions/${versionId}/archive`)),
-  exportClass: (timetableId: string) =>
-    extractData(apiClient.get<Blob>(`/timetable/${timetableId}/export/class`, { responseType: 'blob' })),
-  exportFaculty: (timetableId: string) =>
-    extractData(apiClient.get<Blob>(`/timetable/${timetableId}/export/faculty`, { responseType: 'blob' })),
-  exportMaster: (timetableId: string) =>
-    extractData(apiClient.get<Blob>(`/timetable/${timetableId}/export/master`, { responseType: 'blob' })),
-  exportResourceAllocation: (timetableId: string) =>
-    extractData(apiClient.get<Blob>(`/timetable/${timetableId}/export/resource-allocation`, { responseType: 'blob' })),
+  exportClass: (timetableId: string, versionId?: string) =>
+    extractData(apiClient.get<Blob>(`/timetable/${timetableId}/export/class`, { params: { version_id: versionId }, responseType: 'blob' })),
+  exportFaculty: (timetableId: string, versionId?: string) =>
+    extractData(apiClient.get<Blob>(`/timetable/${timetableId}/export/faculty`, { params: { version_id: versionId }, responseType: 'blob' })),
+  exportMaster: (timetableId: string, versionId?: string) =>
+    extractData(apiClient.get<Blob>(`/timetable/${timetableId}/export/master`, { params: { version_id: versionId }, responseType: 'blob' })),
+  exportResourceAllocation: (timetableId: string, versionId?: string) =>
+    extractData(apiClient.get<Blob>(`/timetable/${timetableId}/export/resource-allocation`, { params: { version_id: versionId }, responseType: 'blob' })),
   exportChangeHistory: (timetableId: string) =>
     extractData(apiClient.get<Blob>(`/timetable/${timetableId}/export/change-history`, { responseType: 'blob' })),
+};
+
+export const reportApi = {
+  facultyLoad: (academicTermId: string) =>
+    extractData(apiClient.get<FacultyLoadReport>('/reports/faculty-load', { params: { academic_term_id: academicTermId } })),
+  timetableSummary: (timetableId: string, versionId?: string) =>
+    extractData(apiClient.get<TimetableSummaryReport>('/reports/timetable-summary', { params: { timetable_id: timetableId, version_id: versionId } })),
+  resourceUtilization: (timetableId: string, versionId?: string) =>
+    extractData(apiClient.get<ResourceUtilizationReport>('/reports/resource-utilization', { params: { timetable_id: timetableId, version_id: versionId } })),
+  conflicts: (timetableId: string, versionId?: string) =>
+    extractData(apiClient.get<ConflictReport>('/reports/conflicts', { params: { timetable_id: timetableId, version_id: versionId } })),
+  validation: (timetableId: string, versionId?: string) =>
+    extractData(apiClient.get<ValidationReport>('/reports/validation', { params: { timetable_id: timetableId, version_id: versionId } })),
+};
+
+export const templateApi = {
+  list: () => extractData(apiClient.get<TimetableTemplate[]>('/templates')),
+  get: (id: string) => extractData(apiClient.get<TimetableTemplate>(`/templates/${id}`)),
+  create: (data: TemplateCreate) => extractData(apiClient.post<TimetableTemplate>('/templates', data)),
+  listTimeSlots: (templateId: string) =>
+    extractData(apiClient.get<TimeSlot[]>(`/templates/${templateId}/time-slots`)),
+  createTimeSlots: (templateId: string, slots: TimeSlotCreate[]) =>
+    extractData(apiClient.post<TimeSlot[]>(`/templates/${templateId}/time-slots`, slots)),
+  bulkCreateTimeSlots: (templateId: string, days: number[], periods: TimeSlotCreate[]) =>
+    extractData(apiClient.post<TimeSlot[]>(`/templates/${templateId}/time-slots/bulk`, { days, periods })),
 };
 
 export const leaveApi = {

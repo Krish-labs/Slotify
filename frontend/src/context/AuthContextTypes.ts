@@ -5,6 +5,7 @@ export interface AuthContextType {
   user: UserResponse | null;
   token: string | null;
   isLoading: boolean;
+  sessionError: string | null;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;

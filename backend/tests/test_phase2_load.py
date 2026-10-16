@@ -2,6 +2,7 @@ from datetime import date
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.academic_term import AcademicTerm
@@ -9,8 +10,10 @@ from app.database.models.batch import Batch
 from app.database.models.class_model import Class
 from app.database.models.faculty import Faculty
 from app.database.models.faculty_load import FacultyLoad, SessionType
+from app.database.models.load_distribution_source import LoadDistributionSourceRow
 from app.database.models.section import Section
 from app.database.models.subject import Subject
+from app.database.models.teaching_assignment import TeachingAssignment
 
 
 @pytest.fixture
@@ -118,6 +121,66 @@ async def test_create_load(async_client: AsyncClient, setup_test_data: dict):
     assert result["theory_hours"] == 3
     assert result["session_type"] == "THEORY"
     assert result["is_approved"] is False
+
+
+@pytest.mark.asyncio
+async def test_source_row_mapping_approval_derives_assignment(
+    async_client: AsyncClient, setup_test_data: dict, db_session: AsyncSession
+):
+    data = setup_test_data
+    row = LoadDistributionSourceRow(
+        source_file="Load Distribution.xlsx",
+        source_sheet="Sheet1",
+        source_semester="Semester I • 2026-27",
+        source_row_number=1,
+        faculty_name="Load Faculty",
+        class_name="SY",
+        subject_name="Digital Electronics",
+        theory="3",
+        practical="-",
+        tutorial="-",
+        project_stage="-",
+        total_load="3",
+        faculty_id=data["faculty"].id,
+        subject_id=data["subject"].id,
+        class_id=data["class"].id,
+        section_id=data["section"].id,
+        academic_term_id=data["term"].id,
+        validation_errors=[],
+    )
+    db_session.add(row)
+    await db_session.commit()
+
+    response = await async_client.post(f"/api/v1/load/source/{row.id}/approve")
+
+    assert response.status_code == 200, response.text
+    assert response.json()["is_approved"] is True
+    assert response.json()["assignments_created"] == 1
+    assert (await db_session.execute(select(FacultyLoad))).scalars().first() is not None
+    assert (await db_session.execute(select(TeachingAssignment))).scalars().first() is not None
+
+
+@pytest.mark.asyncio
+async def test_source_rows_are_listed_with_mapping_errors(
+    async_client: AsyncClient, setup_test_data: dict, db_session: AsyncSession
+):
+    row = LoadDistributionSourceRow(
+        source_file="Load Distribution.xlsx",
+        source_sheet="Sheet1",
+        source_semester="Semester I • 2026-27",
+        source_row_number=2,
+        faculty_name="Unmapped Faculty",
+        subject_name="Unmapped Subject",
+        validation_errors=["Map Faculty", "Map Subject"],
+    )
+    db_session.add(row)
+    await db_session.commit()
+
+    response = await async_client.get("/api/v1/load/source")
+
+    assert response.status_code == 200
+    assert response.json()["total"] == 1
+    assert response.json()["items"][0]["validation_errors"] == ["Map Faculty", "Map Subject"]
 
 
 @pytest.mark.asyncio
@@ -284,6 +347,20 @@ async def test_approve_load(
     assert result["is_approved"] is True
     assert result["approved_at"] is not None
 
+    assignments = (
+        (
+            await db_session.execute(
+                select(TeachingAssignment).where(
+                    TeachingAssignment.academic_term_id == data["term"].id,
+                    TeachingAssignment.faculty_id == data["faculty"].id,
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(assignments) == 1
+
 
 @pytest.mark.asyncio
 async def test_load_reports(
@@ -339,3 +416,85 @@ async def test_load_reports(
     assert "faculty_summary" in result
     assert "class_summary" in result
     assert "subject_summary" in result
+
+
+def _mapped_row(data, subject, row_number=10, theory="3", practical="-"):
+    return LoadDistributionSourceRow(
+        source_file="Load Distribution.xlsx",
+        source_sheet="Sheet1",
+        source_semester="Semester I \u2022 2026-27",
+        source_row_number=row_number,
+        faculty_name="Load Faculty",
+        class_name="SY",
+        subject_name=subject.name,
+        theory=theory,
+        practical=practical,
+        tutorial="-",
+        project_stage="-",
+        total_load="3",
+        faculty_id=data["faculty"].id,
+        subject_id=subject.id,
+        class_id=data["class"].id,
+        section_id=data["section"].id,
+        batch_id=data["batch"].id if practical not in (None, "-", "") else None,
+        academic_term_id=data["term"].id,
+        validation_errors=[],
+    )
+
+
+@pytest.mark.asyncio
+async def test_reapprove_row_derives_nothing_new(
+    async_client: AsyncClient, setup_test_data: dict, db_session: AsyncSession
+):
+    """Approving an already-approved row must not duplicate assignments."""
+    from sqlalchemy import func
+
+    data = setup_test_data
+    db_session.add(_mapped_row(data, data["subject"]))
+    await db_session.commit()
+    row_id = (await db_session.execute(select(LoadDistributionSourceRow))).scalars().first().id
+
+    first = await async_client.post(f"/api/v1/load/source/{row_id}/approve")
+    assert first.status_code == 200, first.text
+    assert first.json()["assignments_created"] == 1
+
+    second = await async_client.post(f"/api/v1/load/source/{row_id}/approve")
+    assert second.status_code == 200, second.text
+    assert second.json()["assignments_created"] == 0
+
+    n = (
+        await db_session.execute(select(func.count()).select_from(TeachingAssignment))
+    ).scalar_one()
+    assert n == 1
+
+
+@pytest.mark.asyncio
+async def test_approve_derives_only_the_approved_row(
+    async_client: AsyncClient, setup_test_data: dict, db_session: AsyncSession
+):
+    """Approving one row must not derive assignments for sibling loads."""
+    data = setup_test_data
+    other_subject = Subject(code="ET102", name="Signals", subject_type="BOTH", semester=1)
+    db_session.add(other_subject)
+    await db_session.flush()
+    db_session.add(_mapped_row(data, data["subject"], row_number=10))
+    db_session.add(_mapped_row(data, other_subject, row_number=11))
+    await db_session.commit()
+    rows = (
+        (
+            await db_session.execute(
+                select(LoadDistributionSourceRow).order_by(
+                    LoadDistributionSourceRow.source_row_number
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    response = await async_client.post(f"/api/v1/load/source/{rows[0].id}/approve")
+    assert response.status_code == 200, response.text
+
+    assignments = (await db_session.execute(select(TeachingAssignment))).scalars().all()
+    assert len(assignments) == 1
+    assert assignments[0].subject_id == data["subject"].id

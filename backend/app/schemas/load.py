@@ -84,3 +84,81 @@ class FacultyLoadImportResult(BaseModel):
     valid_rows: int
     invalid_rows: int
     duplicates: int
+
+
+class LoadSourceRowBase(BaseModel):
+    source_semester: str
+    source_row_number: int = 0
+    serial_number: str | None = None
+    faculty_name: str | None = None
+    designation: str | None = None
+    class_name: str | None = None
+    subject_name: str | None = None
+    theory: str | None = None
+    practical: str | None = None
+    tutorial: str | None = None
+    project_stage: str | None = None
+    total_load: str | None = None
+    sign: str | None = None
+    faculty_id: UUID | None = None
+    subject_id: UUID | None = None
+    class_id: UUID | None = None
+    section_id: UUID | None = None
+    batch_id: UUID | None = None
+    academic_term_id: UUID | None = None
+
+
+class LoadSourceRowCreate(LoadSourceRowBase):
+    pass
+
+
+class LoadSourceRowUpdate(BaseModel):
+    serial_number: str | None = None
+    faculty_name: str | None = None
+    designation: str | None = None
+    class_name: str | None = None
+    subject_name: str | None = None
+    theory: str | None = None
+    practical: str | None = None
+    tutorial: str | None = None
+    project_stage: str | None = None
+    total_load: str | None = None
+    sign: str | None = None
+    faculty_id: UUID | None = None
+    subject_id: UUID | None = None
+    class_id: UUID | None = None
+    section_id: UUID | None = None
+    batch_id: UUID | None = None
+    academic_term_id: UUID | None = None
+
+
+class LoadSourceRowResponse(LoadSourceRowBase):
+    id: UUID
+    source_file: str
+    source_sheet: str
+    validation_errors: list[str]
+    is_deleted: bool
+    is_approved: bool
+    approved_by: UUID | None = None
+    approved_at: datetime | None = None
+    faculty_load_id: UUID | None = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class LoadSourceListResponse(BaseModel):
+    items: list[LoadSourceRowResponse]
+    semesters: list[str]
+    total: int
+
+
+class LoadSourceImportResult(BaseModel):
+    imported: int
+    invalid: int
+
+
+class LoadSourceApprovalResponse(LoadSourceRowResponse):
+    assignments_created: int = 0

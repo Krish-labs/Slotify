@@ -2,7 +2,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ValidationError
-from app.core.security import create_access_token, get_password_hash, verify_password
+from app.core.security import (
+    create_access_token,
+    get_password_hash,
+    validate_password_strength,
+    verify_password,
+)
 from app.database.models.role import Role
 from app.database.models.user import User
 
@@ -22,6 +27,11 @@ class AuthService:
         existing = await self.db.execute(select(User).where(User.email == email))
         if existing.scalar_one_or_none():
             raise ValidationError("Email already registered")
+
+        try:
+            validate_password_strength(password)
+        except ValueError as e:
+            raise ValidationError(str(e)) from e
 
         user = User(
             email=email,

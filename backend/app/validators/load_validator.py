@@ -69,9 +69,11 @@ class LoadValidator:
                 if (
                     not df[col]
                     .apply(
-                        lambda x: isinstance(x, (int, float))
-                        or (isinstance(x, str) and x.strip() == "")
-                        or pd.isna(x)
+                        lambda x: (
+                            isinstance(x, int | float)
+                            or (isinstance(x, str) and x.strip() == "")
+                            or pd.isna(x)
+                        )
                     )
                     .all()
                 ):

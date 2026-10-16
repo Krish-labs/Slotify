@@ -17,6 +17,27 @@ from app.database.models import (
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
+REPORTABLE_VERSION_STATUSES = ("GENERATED", "VALIDATED", "UNDER_REVIEW", "APPROVED", "PUBLISHED")
+
+
+async def _report_version(
+    db: AsyncSession, timetable_id: UUID, version_id: UUID | None = None
+) -> TimetableVersion | None:
+    if version_id:
+        version = await db.get(TimetableVersion, version_id)
+        if version and version.timetable_id == timetable_id and version.status in REPORTABLE_VERSION_STATUSES:
+            return version
+        return None
+    return (
+        await db.execute(
+            select(TimetableVersion)
+            .where(TimetableVersion.timetable_id == timetable_id)
+            .where(TimetableVersion.status.in_(REPORTABLE_VERSION_STATUSES))
+            .order_by(TimetableVersion.version_number.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+
 
 @router.get("/faculty-load")
 async def faculty_load_report(
@@ -35,6 +56,7 @@ async def faculty_load_report(
 @router.get("/timetable-summary")
 async def timetable_summary_report(
     timetable_id: UUID = Query(...),
+    version_id: UUID | None = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_permissions(Permission.TIMETABLE_READ)),
 ):
@@ -45,14 +67,7 @@ async def timetable_summary_report(
             status_code=http_status.HTTP_404_NOT_FOUND, detail="Timetable not found"
         )
 
-    latest_version = (
-        await db.execute(
-            select(TimetableVersion)
-            .where(TimetableVersion.timetable_id == timetable_id)
-            .order_by(TimetableVersion.version_number.desc())
-            .limit(1)
-        )
-    ).scalar_one_or_none()
+    latest_version = await _report_version(db, timetable_id, version_id)
 
     if not latest_version:
         raise HTTPException(
@@ -105,6 +120,7 @@ async def timetable_summary_report(
 @router.get("/resource-utilization")
 async def resource_utilization_report(
     timetable_id: UUID = Query(...),
+    version_id: UUID | None = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_permissions(Permission.TIMETABLE_READ)),
 ):
@@ -115,15 +131,7 @@ async def resource_utilization_report(
             status_code=http_status.HTTP_404_NOT_FOUND, detail="Timetable not found"
         )
 
-    latest_version = (
-        await db.execute(
-            select(TimetableVersion)
-            .where(TimetableVersion.timetable_id == timetable_id)
-            .order_by(TimetableVersion.version_number.desc())
-            .filter(TimetableVersion.status == "VALIDATED")
-            .limit(1)
-        )
-    ).scalar_one_or_none()
+    latest_version = await _report_version(db, timetable_id, version_id)
 
     if not latest_version:
         raise HTTPException(
@@ -191,6 +199,7 @@ async def resource_utilization_report(
 @router.get("/conflicts")
 async def conflicts_report(
     timetable_id: UUID = Query(...),
+    version_id: UUID | None = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_permissions(Permission.TIMETABLE_READ)),
 ):
@@ -203,14 +212,7 @@ async def conflicts_report(
             status_code=http_status.HTTP_404_NOT_FOUND, detail="Timetable not found"
         )
 
-    latest_version = (
-        await db.execute(
-            select(TimetableVersion)
-            .where(TimetableVersion.timetable_id == timetable_id)
-            .order_by(TimetableVersion.version_number.desc())
-            .limit(1)
-        )
-    ).scalar_one_or_none()
+    latest_version = await _report_version(db, timetable_id, version_id)
 
     if not latest_version:
         raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="No version found")
@@ -258,6 +260,7 @@ async def conflicts_report(
 @router.get("/validation")
 async def validation_report(
     timetable_id: UUID = Query(...),
+    version_id: UUID | None = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_permissions(Permission.TIMETABLE_READ)),
 ):
@@ -270,14 +273,7 @@ async def validation_report(
             status_code=http_status.HTTP_404_NOT_FOUND, detail="Timetable not found"
         )
 
-    latest_version = (
-        await db.execute(
-            select(TimetableVersion)
-            .where(TimetableVersion.timetable_id == timetable_id)
-            .order_by(TimetableVersion.version_number.desc())
-            .limit(1)
-        )
-    ).scalar_one_or_none()
+    latest_version = await _report_version(db, timetable_id, version_id)
 
     if not latest_version:
         raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="No version found")

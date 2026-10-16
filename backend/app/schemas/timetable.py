@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, time
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -91,3 +91,53 @@ class TimetableGenerateResponse(BaseModel):
     timetable_id: UUID
     status: str
     message: str
+
+
+class TemplateCreate(BaseModel):
+    name: str
+    description: str | None = None
+    academic_year: str
+    is_default: bool = False
+
+
+class TemplateResponse(BaseModel):
+    id: UUID
+    name: str
+    description: str | None = None
+    academic_year: str
+    is_default: bool
+    is_active: bool
+
+    class Config:
+        from_attributes = True
+
+
+class TimeSlotCreate(BaseModel):
+    day_of_week: int  # 0=Mon .. 5=Sat
+    period_number: int
+    start_time: time
+    end_time: time
+    slot_type: str = "TEACHING"  # TEACHING, BREAK, LUNCH
+    shift: str = "MORNING"  # MORNING, LATE
+
+
+class TimeSlotBulkCreate(BaseModel):
+    """Generate one teaching slot per (day, period) from a period grid."""
+
+    days: list[int]  # e.g. [0, 1, 2, 3, 4, 5]
+    periods: list[TimeSlotCreate]
+
+
+class TimeSlotResponse(BaseModel):
+    id: UUID
+    template_id: UUID
+    day_of_week: int
+    period_number: int
+    start_time: time
+    end_time: time
+    slot_type: str
+    shift: str
+    is_active: bool
+
+    class Config:
+        from_attributes = True

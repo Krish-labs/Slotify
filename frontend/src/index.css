@@ -2,80 +2,315 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Slotify paper design system.
+ * Reason for grayscale only: timetables and load tables are dense legal documents,
+ * color must never carry meaning alone. Ink weight, rules, and labels carry hierarchy.
+ * Reason for serif display + humanist sans + mono: serif gives the editorial academic
+ * voice for page titles, Source Sans 3 keeps dense data legible (per DESIGN.md),
+ * mono keeps times, codes, and room numbers in tabular alignment.
+ * Dials: ENERGY 1 / RHYTHM 2 / MOTION 1. Hover and focus only, no scroll choreography.
+ */
+
+:root {
+  --paper: #fdfcf8;
+  --paper-raised: #ffffff;
+  --paper-inset: #f4f1e9;
+  --ink: #141412;
+  --ink-secondary: #3f3e3a;
+  --ink-muted: #6f6e69;
+  --rule: #e5e1d6;
+  --rule-strong: #141412;
+  --focus: #2a2a29;
+  --practical-hatch: repeating-linear-gradient(
+    -45deg,
+    transparent 0 5px,
+    rgba(20, 20, 18, 0.08) 5px 6px
+  );
+  color-scheme: light;
+}
+
+.dark {
+  --paper: #111110;
+  --paper-raised: #1a1a18;
+  --paper-inset: #232320;
+  --ink: #f2f0e9;
+  --ink-secondary: #c9c7bf;
+  --ink-muted: #8d8c85;
+  --rule: #2e2d2a;
+  --rule-strong: #f2f0e9;
+  --focus: #f2f0e9;
+  --practical-hatch: repeating-linear-gradient(
+    -45deg,
+    transparent 0 5px,
+    rgba(242, 240, 233, 0.12) 5px 6px
+  );
+  color-scheme: dark;
+}
+
 * {
   box-sizing: border-box;
 }
 
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+html,
+body {
+  overflow-x: clip;
+}
+
+#root {
+  max-width: 100vw;
+  contain: paint;
+  overflow-x: clip;
+}
+
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: "Source Sans 3", -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  background: var(--paper);
+  color: var(--ink);
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background-color: #f9fafb;
 }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+/* Paper grain: single subtle texture, not decoration stacking. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  background-image: radial-gradient(rgba(20, 20, 18, 0.025) 1px, transparent 1px);
+  background-size: 22px 22px;
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+.dark body::before {
+  background-image: radial-gradient(rgba(242, 240, 233, 0.04) 1px, transparent 1px);
 }
 
-::-webkit-scrollbar-track {
-  background: #f1f1f1;
+::selection {
+  background: var(--ink);
+  color: var(--paper);
 }
 
-::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 4px;
+/* Type scale: editorial serif for page titles only. */
+.font-display {
+  font-family: "Source Serif 4", Georgia, serif;
+  letter-spacing: -0.01em;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #a1a1a1;
+.kicker {
+  font-family: "IBM Plex Mono", Menlo, monospace;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
 }
 
-/* Table styles */
-table {
+/* Ledger rules */
+.rule-top {
+  border-top: 2px solid var(--rule-strong);
+}
+
+.paper-panel {
+  background: var(--paper-raised);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+}
+
+.paper-inset {
+  background: var(--paper-inset);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+}
+
+/* Tables: ledger style, sticky header, strong row rules. */
+.ledger-table {
+  width: 100%;
   border-collapse: collapse;
+  font-size: 0.9rem;
 }
 
-th, td {
-  border: 1px solid #e5e7eb;
+.ledger-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--paper-raised);
+  border-bottom: 2px solid var(--rule-strong);
+  text-align: left;
+  font-family: "IBM Plex Mono", Menlo, monospace;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  padding: 0.65rem 0.75rem;
+  white-space: nowrap;
 }
 
-/* Focus styles */
+.ledger-table tbody td {
+  border-bottom: 1px solid var(--rule);
+  padding: 0.6rem 0.75rem;
+  vertical-align: top;
+  background: var(--paper-raised);
+}
+
+.ledger-table tbody tr:hover td {
+  background: var(--paper-inset);
+}
+
+/* Timetable grid */
+.tt-grid {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+}
+
+.tt-grid th,
+.tt-grid td {
+  border-bottom: 1px solid var(--rule);
+  border-right: 1px solid var(--rule);
+}
+
+.tt-grid thead th {
+  background: var(--paper-raised);
+  font-family: "IBM Plex Mono", Menlo, monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  padding: 0.6rem;
+}
+
+/* Row striping respects RHYTHM 2 — subtle break between sections.
+   Respects prefers-reduced-motion: striping is pure CSS, no animation. */
+.tt-grid tbody tr:nth-child(odd) td {
+  background: var(--paper-inset);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tt-grid tbody tr:nth-child(odd) td {
+    background: var(--paper-raised);
+  }
+}
+
+.tt-cell-lecture {
+  border-left: 3px solid var(--rule-strong);
+  background: var(--paper-raised);
+}
+
+.tt-cell-practical {
+  border-left: 3px solid var(--rule-strong);
+  background-image: var(--practical-hatch);
+  background-color: var(--paper-inset);
+}
+
+/* Forms */
+.field-label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--ink-secondary);
+  margin-bottom: 0.3rem;
+}
+
+.field-input,
+.field-select,
+.field-textarea {
+  width: 100%;
+  background: var(--paper-raised);
+  color: var(--ink);
+  border: 1px solid var(--rule-strong);
+  border-radius: 4px;
+  padding: 0.55rem 0.7rem;
+  font-size: 0.92rem;
+}
+
+.field-input::placeholder,
+.field-textarea::placeholder {
+  color: var(--ink-muted);
+}
+
+.field-input:hover,
+.field-select:hover,
+.field-textarea:hover {
+  background: var(--paper-inset);
+}
+
+.field-hint {
+  font-size: 0.8rem;
+  color: var(--ink-muted);
+  margin-top: 0.25rem;
+}
+
+.field-error {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--ink);
+  border-left: 3px solid var(--ink);
+  padding-left: 0.5rem;
+  margin-top: 0.3rem;
+}
+
+/* Focus: always visible, ink outline, never removed. */
 *:focus-visible {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 
-/* Animation for modals */
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+/* Minimal motion: hover and fade only. */
+@media (prefers-reduced-motion: no-preference) {
+  .fade-in {
+    animation: paper-fade 160ms ease-out;
+  }
 }
 
-@keyframes slideUp {
-  from { 
+@keyframes paper-fade {
+  from {
     opacity: 0;
-    transform: translateY(10px);
   }
-  to { 
+  to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
-.animate-fade-in {
-  animation: fadeIn 0.2s ease-out;
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
 }
 
-.animate-slide-up {
-  animation: slideUp 0.3s ease-out;
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--paper-inset);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--ink-muted);
+  border-radius: 5px;
+  border: 2px solid var(--paper-inset);
+}
+
+button {
+  min-height: 44px;
+}
+
+table button,
+nav button,
+.tt-grid button {
+  min-height: 32px;
 }

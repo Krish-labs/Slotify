@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "SchedulAI - Production Readiness Engineering",
+    "visual_preset": "signal-flow"
+  },
+  "components": [
+    { "id": "frontend", "type": "frontend", "label": "React + TypeScript UI", "sublabel": "Vite + React SPA", "pos": [200, 100], "size": [180, 100] },
+    { "id": "backend-api", "type": "backend", "label": "FastAPI Backend", "sublabel": "REST endpoints", "pos": [200, 300], "size": [180, 100] },
+    { "id": "scheduler", "type": "backend", "label": "CP-SAT Scheduler", "sublabel": "OR-Tools CP-SAT", "pos": [200, 500], "size": [180, 100] },
+    { "id": "database", "type": "database", "label": "PostgreSQL", "sublabel": "All domain models", "pos": [200, 700], "size": [180, 100] },
+    { "id": "redis", "type": "messagebus", "label": "Redis", "sublabel": "Job queues", "pos": [600, 100], "size": [180, 100] },
+    { "id": "workers", "type": "backend", "label": "Background Workers", "sublabel": "Timetable + Reopt", "pos": [600, 300], "size": [180, 100] },
+    { "id": "validation", "type": "backend", "label": "Timetable Validation", "sublabel": "Constraints + readiness", "pos": [600, 500], "size": [180, 100] },
+    { "id": "importers", "type": "backend", "label": "Workbook Importers", "sublabel": "Load dist. + Excel", "pos": [1000, 300], "size": [180, 100] },
+    { "id": "exporters", "type": "backend", "label": "Timetable Exporters", "sublabel": "4 export formats", "pos": [1000, 500], "size": [180, 100] },
+    { "id": "auth", "type": "security", "label": "Auth & Permissions", "sublabel": "JWT + RBAC", "pos": [1000, 100], "size": [180, 100] }
+  ],
+  "connections": [
+    { "from": "frontend", "to": "backend-api", "label": "REST API", "variant": "emphasis" },
+    { "from": "frontend", "to": "auth", "label": "Login / JWT" },
+    { "from": "backend-api", "to": "database", "label": "SQL queries (asyncpg)" },
+    { "from": "backend-api", "to": "redis", "label": "Job enqueue / status" },
+    { "from": "backend-api", "to": "workers", "label": "Job dispatch" },
+    { "from": "workers", "to": "scheduler", "label": "CP-SAT solve request" },
+    { "from": "workers", "to": "redis", "label": "Job status update" },
+    { "from": "scheduler", "to": "database", "label": "Persist FacultyLoad + Assignments" },
+    { "from": "validation", "to": "database", "label": "Check constraints" },
+    { "from": "importers", "to": "backend-api", "label": "Import load dist." },
+    { "from": "exporters", "to": "backend-api", "label": "Export data refs" }
+  ]
+}

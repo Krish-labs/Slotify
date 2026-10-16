@@ -2,11 +2,12 @@ COMPOSE ?= docker compose
 LOAD_FILE ?= data/raw/Load Distribution.xlsx
 
 .PHONY: help install dev backend frontend worker build build-backend build-frontend \
+	prod-build prod-up prod-down prod-logs \
 	test test-backend test-backend-unit test-backend-integration test-scheduler test-frontend \
 	test-backend-pg verify-pg \
 	lint lint-backend lint-frontend typecheck format \
 	db-up db-down db-logs db-migrate db-migrate-create db-seed db-reset \
-	import-load normalize-data clean
+	import-load clean clean-outputs
 
 help:
 	@echo "SchedulAI - Development Commands"
@@ -47,6 +48,7 @@ help:
 	@echo ""
 	@echo "Cleanup:"
 	@echo "  make clean            Clean build artifacts and caches"
+	@echo "  make clean-outputs    Remove generated timetable/report files"
 
 # ============================================================================
 # Setup
@@ -82,6 +84,21 @@ frontend:
 worker:
 	$(COMPOSE) up worker
 
+# Production overlay (requires .env.prod; see .env.prod.example).
+# Never boots with development credentials: missing/insecure secrets fail
+# compose interpolation or backend startup before serving traffic.
+prod-build:
+	$(COMPOSE) -f docker-compose.yml -f docker-compose.prod.yml build
+
+prod-up:
+	$(COMPOSE) -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+prod-down:
+	$(COMPOSE) -f docker-compose.yml -f docker-compose.prod.yml down
+
+prod-logs:
+	$(COMPOSE) -f docker-compose.yml -f docker-compose.prod.yml logs -f
+
 # ============================================================================
 # Database Operations
 # ============================================================================
@@ -98,6 +115,9 @@ db-seed:
 	$(COMPOSE) exec -e SEED_ADMIN_EMAIL -e SEED_ADMIN_PASSWORD backend python -m app.database.seed
 
 db-reset:
+	@echo "WARNING: db-reset drops the entire schema (downgrade base) and reseeds."
+	@echo "Never point DATABASE_URL at production. Require CONFIRM=yes to proceed."
+	@test "$${CONFIRM:-}" = "yes" || (echo "Aborted: re-run with CONFIRM=yes" && exit 1)
 	$(COMPOSE) exec backend alembic downgrade base
 	$(COMPOSE) exec backend alembic upgrade head
 	$(COMPOSE) exec backend python -m app.database.seed
@@ -124,9 +144,15 @@ test-frontend:
 
 # Same suite as CI: DATABASE_URL must point at a (disposable) PostgreSQL, or
 # conftest.py falls back to in-memory SQLite and the run proves nothing new.
+# The suite drops every table in the target database after each test, so
+# pointing it at the shared dev database wipes real data: refuse the
+# well-known non-disposable names unless CONFIRM=yes.
 test-backend-pg:
 	@case "$$DATABASE_URL" in postgresql*) ;; *) \
 		echo "DATABASE_URL must be a postgresql+asyncpg:// URL (got: $${DATABASE_URL:-unset})"; exit 2;; esac
+	@dbname=$$(echo "$$DATABASE_URL" | sed -E 's#^[^/]*//[^/]*/##; s#[?].*$$##'); \
+	if [ "$$dbname" = "schedulai" ] && [ "$${CONFIRM:-}" != "yes" ]; then \
+		echo "Refusing: test-backend-pg drops all tables in '$$dbname'; use a disposable database or re-run with CONFIRM=yes"; exit 2; fi
 	cd backend && pytest tests/ -q -p no:warnings
 
 # PostgreSQL schema/API verification (see scripts/pg_*.py).
@@ -137,6 +163,9 @@ test-backend-pg:
 verify-pg:
 	@case "$$DATABASE_URL" in postgresql*) ;; *) \
 		echo "DATABASE_URL must be a postgresql+asyncpg:// URL (got: $${DATABASE_URL:-unset})"; exit 2;; esac
+	@dbname=$$(echo "$$DATABASE_URL" | sed -E 's#^[^/]*//[^/]*/##; s#[?].*$$##'); \
+	if [ "$$dbname" = "schedulai" ] && [ "$${CONFIRM:-}" != "yes" ]; then \
+		echo "Refusing: verify-pg drops and recreates the schema of '$$dbname'; use a disposable database or re-run with CONFIRM=yes"; exit 2; fi
 	python scripts/pg_integration_smoke.py --allow-destructive
 	PYTHONPATH=backend python scripts/pg_schema_audit.py
 
@@ -177,9 +206,6 @@ build-frontend:
 import-load:
 	$(COMPOSE) exec backend python scripts/import_data.py --file "$(LOAD_FILE)"
 
-normalize-data:
-	$(COMPOSE) exec backend python scripts/normalize_data.py
-
 # ============================================================================
 # Cleanup
 # ============================================================================
@@ -187,6 +213,11 @@ clean:
 	rm -rf backend/__pycache__ backend/.pytest_cache backend/.coverage backend/htmlcov
 	rm -rf backend/app/__pycache__ backend/app/**/__pycache__
 	rm -rf frontend/node_modules frontend/dist frontend/build frontend/.vite
-	rm -rf outputs/timetables/* outputs/reports/* outputs/validation/* outputs/logs/*
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 	find . -type f -name "*.pyc" -delete 2>/dev/null || true
+
+clean-outputs:
+	@echo "WARNING: clean-outputs deletes generated timetables/reports/validation/logs."
+	@echo "Ensure artifacts are backed up or regenerable. Require CONFIRM=yes."
+	@test "$${CONFIRM:-}" = "yes" || (echo "Aborted: re-run with CONFIRM=yes" && exit 1)
+	rm -rf outputs/timetables/* outputs/reports/* outputs/validation/* outputs/logs/*

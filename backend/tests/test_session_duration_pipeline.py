@@ -23,14 +23,19 @@ from app.database.models import (
     Class,
     Faculty,
     FacultyLoad,
+    Leave,
+    LoadDistributionSourceRow,
     Notification,
     Resource,
+    ResourceAvailability,
     Section,
     Subject,
+    Substitution,
     TeachingAssignment,
     TimeSlot,
     Timetable,
     TimetableEntry,
+    TimetableJob,
     TimetableTemplate,
     TimetableVersion,
     User,
@@ -57,9 +62,13 @@ async def factory():
     )
     models = (
         User, TimetableTemplate, AcademicTerm, Class, Subject, Faculty, Section, Batch,
-        Resource, TimeSlot, FacultyLoad, TeachingAssignment, Timetable, TimetableVersion,
-        TimetableEntry, AuditLog, Notification,
+        Resource, ResourceAvailability, TimeSlot, FacultyLoad, TeachingAssignment,
+        Timetable, TimetableVersion, TimetableEntry, AuditLog, Notification,
+        Leave, Substitution, LoadDistributionSourceRow, TimetableJob,
     )  # fmt: skip
+    # Leave/ResourceAvailability/TimetableJob must exist: generation resolves
+    # availability blocks and durable jobs against these tables. A subset
+    # schema turns those reads into OperationalError ("no such table").
     tables = [Base.metadata.tables[m.__tablename__] for m in models]
     async with engine.begin() as conn:
         await conn.run_sync(lambda c: Base.metadata.create_all(c, tables=tables))

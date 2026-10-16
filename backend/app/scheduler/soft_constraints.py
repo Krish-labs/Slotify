@@ -38,15 +38,19 @@ class SoftConstraints:
 
     def _faculty_day_distribution(self):
         # Penalize multiple sessions same day for same faculty
-        for assignment in self.assignment_map.values():
-            faculty_id = assignment.faculty_id
+        for faculty_id in {assignment.faculty_id for assignment in self.assignment_map.values()}:
             for day in range(6):  # Mon-Sat
                 day_vars = []
                 for (a_id, _r_id, t_id), var in self.variables.items():
-                    if a_id == assignment.id:
-                        time_slot = self.time_slot_map.get(t_id)
-                        if time_slot and time_slot.day_of_week == day:
-                            day_vars.append(var)
+                    assignment = self.assignment_map.get(a_id)
+                    time_slot = self.time_slot_map.get(t_id)
+                    if (
+                        assignment
+                        and assignment.faculty_id == faculty_id
+                        and time_slot
+                        and time_slot.day_of_week == day
+                    ):
+                        day_vars.append(var)
                 if len(day_vars) > 1:
                     # Create penalty variable for excess sessions
                     penalty = self.model.NewIntVar(

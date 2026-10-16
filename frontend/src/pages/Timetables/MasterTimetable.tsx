@@ -1,252 +1,165 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Download } from 'lucide-react';
-import { timetableApi } from '../../api';
-import type { TimetableVersionWithEntries, Resource } from '../../api/types';
-
-const DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-const PERIODS = [
-  { num: 1, time: '08:00-08:50' },
-  { num: 2, time: '08:50-09:40' },
-  { num: 3, time: '09:40-10:30' },
-  { num: 4, time: '10:40-11:30' },
-  { num: 5, time: '11:30-12:20' },
-  { num: 6, time: '12:20-01:10' },
-  { num: 7, time: '01:10-02:00' },
-  { num: 8, time: '02:00-02:50' },
-];
-
-const TYPE_COLORS: Record<string, string> = {
-  CLASSROOM: 'bg-blue-100 text-blue-800',
-  SOFTWARE_LAB: 'bg-purple-100 text-purple-800',
-  HARDWARE_LAB: 'bg-orange-100 text-orange-800',
-};
-
-interface ResourceWithEntries extends Resource {
-  entryCount: number;
-}
+import { templateApi, timetableApi } from '../../api';
+import type { TimetableVersionWithEntries } from '../../api/types';
+import { PageHeader } from '../../components/ui/PageHeader';
+import { TimetableControls } from '../../components/ui/TimetableControls';
+import { TimetableGrid, type GridEntry } from '../../components/ui/TimetableGrid';
+import { EmptyState, ErrorState, LoadingState } from '../../components/ui/States';
+import { WorkflowSteps } from '../../components/ui/WorkflowSteps';
+import { Badge } from '../../components/ui/Badge';
+import { latestReadableVersion } from '../../utils/timetable';
 
 export function MasterTimetable() {
+  const [timetableId, setTimetableId] = useState('');
+  const [versionId, setVersionId] = useState('');
   const [viewMode, setViewMode] = useState<'resource' | 'consolidated'>('resource');
-  const [filterType, setFilterType] = useState('all');
-  const [selectedTimetableId, setSelectedTimetableId] = useState<string>('');
-  const [selectedVersionId, setSelectedVersionId] = useState<string>('');
+  const [resourceId, setResourceId] = useState('');
 
-  const { data: timetables } = useQuery({
-    queryKey: ['timetables'],
-    queryFn: () => timetableApi.list(),
+  const timetablesQuery = useQuery({ queryKey: ['timetables'], queryFn: () => timetableApi.list() });
+  const timetables = timetablesQuery.data?.timetables;
+  const versionsQuery = useQuery({
+    queryKey: ['timetableVersions', timetableId],
+    queryFn: () => timetableApi.listVersions(timetableId),
+    enabled: !!timetableId,
+  });
+  const readableVersion = latestReadableVersion(versionsQuery.data?.versions ?? []);
+  const readableVersionId = readableVersion?.id;
+  const timetableQuery = useQuery({
+    queryKey: ['timetable', timetableId],
+    queryFn: () => timetableApi.get(timetableId),
+    enabled: !!timetableId,
+  });
+  const slotsQuery = useQuery({
+    queryKey: ['timeSlots', timetableQuery.data?.template_id],
+    queryFn: () => templateApi.listTimeSlots(timetableQuery.data!.template_id),
+    enabled: !!timetableQuery.data?.template_id,
+  });
+  const versionQuery = useQuery<TimetableVersionWithEntries>({
+    queryKey: ['timetableVersion', timetableId, versionId],
+    queryFn: () => timetableApi.getVersion(timetableId, versionId),
+    enabled: !!timetableId && !!versionId,
   });
 
-  const { data: versions } = useQuery({
-    queryKey: ['timetableVersions', selectedTimetableId],
-    queryFn: () => timetableApi.listVersions(selectedTimetableId),
-    enabled: !!selectedTimetableId,
-  });
+  useEffect(() => {
+    if (!timetableId && timetables?.[0]) setTimetableId(timetables[0].id);
+  }, [timetableId, timetables]);
 
-  const { data: versionData } = useQuery<TimetableVersionWithEntries>({
-    queryKey: ['timetableVersion', selectedTimetableId, selectedVersionId],
-    queryFn: () => timetableApi.getVersion(selectedTimetableId, selectedVersionId),
-    enabled: !!selectedTimetableId && !!selectedVersionId,
-  });
+  useEffect(() => {
+    if (timetableId && !versionId && readableVersionId) setVersionId(readableVersionId);
+  }, [readableVersionId, timetableId, versionId]);
 
-  const entries = versionData?.entries || [];
+  const allEntries = versionQuery.data?.entries ?? [];
+  // Rooms come from the server-resolved resource_name on TimetableEntry, with
+  // the id as fallback; the select lists real room names, not raw UUIDs.
+  const resourceIds = [...new Set(allEntries.map((e) => e.resource_id).filter(Boolean))] as string[];
+  const resourceNames = new Map(
+    allEntries
+      .filter((e) => e.resource_id && e.resource_name)
+      .map((e) => [e.resource_id as string, e.resource_name as string]),
+  );
+  const resourceLabel = (id: string) => resourceNames.get(id) || id;
+  const activeResource = resourceId || resourceIds[0] || '';
+  const visible =
+    viewMode === 'consolidated'
+      ? allEntries
+      : allEntries.filter((e) => e.resource_id === activeResource);
 
-  // Extract unique resources from entries
-  const resourceIds = [...new Set(entries.map((e) => e.resource_id).filter(Boolean))];
-  const resources: ResourceWithEntries[] = resourceIds
-    .filter((id): id is string => id !== null)
-    .map((id) => {
-      const resourceEntries = entries.filter((e) => e.resource_id === id);
-      return {
-        id,
-        name: id,
-        resource_type: 'CLASSROOM',
-        capacity: 0,
-        building: null,
-        floor: null,
-        room_number: null,
-        is_emergency: false,
-        is_active: true,
-        created_at: '',
-        updated_at: '',
-        entryCount: resourceEntries.length,
-      };
-    })
-    .filter((r) => filterType === 'all' || r.resource_type === filterType);
-
-  const handleExport = async () => {
-    if (!selectedTimetableId) return;
-    try {
-      const blob = await timetableApi.exportMaster(selectedTimetableId);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `master_timetable_${selectedTimetableId}.xlsx`;
-      a.click();
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('Failed to export:', err);
-      alert('Failed to export timetable');
-    }
-  };
-
-  const getCellContent = (resourceId: string, day: string, periodNum: number) => {
-    const dayIndex = DAYS.indexOf(day) + 1;
-    const entry = entries.find(
-      (e) => e.resource_id === resourceId && e.day_of_week === dayIndex && e.period_number === periodNum
-    );
-    if (!entry) return null;
-
-    const isPractical = entry.session_type === 'PRACTICAL' || entry.session_type === 'P';
-
-    return (
-      <div
-        className={`p-2 rounded ${
-          isPractical
-            ? 'bg-purple-50 border-l-4 border-purple-500'
-            : 'bg-blue-50 border-l-4 border-blue-500'
-        }`}
-      >
-        <div className="font-medium text-sm">{entry.subject_id || 'Unknown'}</div>
-        <div className="text-xs text-gray-600">{entry.faculty_id || 'Unknown'}</div>
-        <div className="text-xs text-gray-500">{entry.section_id || 'Unknown'}</div>
-        <span
-          className={`inline-block mt-1 px-1 py-0.5 text-xs rounded ${
-            isPractical ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
-          }`}
-        >
-          {isPractical ? 'Lab' : 'Lecture'}
-        </span>
-      </div>
-    );
-  };
+  const entries: GridEntry[] = visible
+    .filter((e) => e.period_number != null)
+    .map((e) => ({
+      id: e.id,
+       day_of_week: e.day_of_week,
+       period_number: e.period_number as number,
+       start_time: e.start_time,
+       end_time: e.end_time,
+       session_type: e.session_type,
+      subject_label: e.subject_name || e.subject_id || 'Unmapped subject',
+      line_two: e.faculty_name || e.faculty_id || 'Unmapped faculty',
+      line_three: e.section_name || e.section_id || undefined,
+       batch_label: e.batch_name || null,
+    }));
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Master Timetable</h1>
-          <p className="text-gray-500">Department-wide resource allocation view</p>
-        </div>
-        <div className="flex flex-wrap items-center space-x-3">
-          <select
-            value={selectedTimetableId}
-            onChange={(e) => {
-              setSelectedTimetableId(e.target.value);
-              setSelectedVersionId('');
-            }}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 min-w-[300px]"
-          >
-            <option value="">Select Timetable</option>
-            {timetables?.timetables?.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name} ({t.academic_year} Sem {t.semester}) - {t.status}
-              </option>
-            ))}
-          </select>
-          {selectedTimetableId && (
-            <select
-              value={selectedVersionId}
-              onChange={(e) => setSelectedVersionId(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 min-w-[250px]"
-            >
-              <option value="">Select Version</option>
-              {versions?.versions?.map((v) => (
-                <option key={v.id} value={v.id}>
-                  v{v.version_number} - {v.status} - {v.change_type}
-                </option>
-              ))}
-            </select>
-          )}
-          <div className="flex items-center space-x-2">
-            <span className="text-sm text-gray-500">View:</span>
-            <button
-              onClick={() => setViewMode('resource')}
-              className={`px-3 py-1 rounded ${viewMode === 'resource' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
-            >
-              By Resource
-            </button>
-            <button
-              onClick={() => setViewMode('consolidated')}
-              className={`px-3 py-1 rounded ${viewMode === 'consolidated' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
-            >
-              Consolidated
-            </button>
-          </div>
-          <select
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">All Types</option>
-            <option value="CLASSROOM">Classrooms</option>
-            <option value="SOFTWARE_LAB">Software Labs</option>
-            <option value="HARDWARE_LAB">Hardware Labs</option>
-          </select>
-          {selectedVersionId && (
-            <button onClick={handleExport} className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
-              <Download className="w-4 h-4 mr-2" />
-              Export Master
-            </button>
-          )}
-        </div>
-      </div>
-
-      {selectedVersionId && (
-        <div className="space-y-6">
-          {resources.length === 0 ? (
-            <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
-              No resources found for this timetable version
-            </div>
-          ) : (
-            resources.map((resource) => (
-              <div key={resource.id} className="bg-white rounded-lg shadow">
-                <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${TYPE_COLORS[resource.resource_type] || 'bg-gray-100 text-gray-800'}`}>
-                      {resource.resource_type.replace('_', ' ')}
-                    </span>
-                    <h3 className="font-semibold text-gray-900">{resource.name}</h3>
-                    <span className="text-sm text-gray-500">Entries: {resource.entryCount}</span>
-                  </div>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[1000px]">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="w-32 px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                          Period / Time
-                        </th>
-                        {DAYS.map((day) => (
-                          <th key={day} className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">
-                            {day}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {PERIODS.map((period) => (
-                        <tr key={`${resource.id}-${period.num}`} className="hover:bg-gray-50">
-                          <td className="w-32 px-3 py-2 text-sm font-medium text-gray-900 whitespace-nowrap">
-                            P{period.num}<br />
-                            <span className="text-xs text-gray-500">{period.time}</span>
-                          </td>
-                          {DAYS.map((day) => (
-                            <td key={`${day}-${period.num}`} className="px-2 py-2 align-top min-h-[60px]">
-                              {getCellContent(resource.id, day, period.num) || (
-                                <div className="text-xs text-gray-300 text-center py-4">—</div>
-                              )}
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+    <div className="space-y-5">
+      <PageHeader
+        kicker="Clause 06 to 08"
+        title="Master Timetable"
+        description="Every room, every period. Read by resource for clashes, or consolidated for the full department."
+      />
+      <WorkflowSteps current={5} />
+      <TimetableControls
+         timetables={timetables ?? []}
+         versions={versionsQuery.data?.versions ?? []}
+        selectedTimetableId={timetableId}
+        selectedVersionId={versionId}
+        onTimetable={(id) => {
+          setTimetableId(id);
+          setVersionId('');
+          setResourceId('');
+        }}
+         onVersion={(id) => {
+           setVersionId(id);
+           setResourceId('');
+         }}
+        exportKind="master"
+        extra={
+          versionId ? (
+            <>
+              <div className="flex items-center gap-1" role="group" aria-label="View mode">
+                {(['resource', 'consolidated'] as const).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => setViewMode(m)}
+                    aria-pressed={viewMode === m}
+                    className={`rounded border px-3 py-2 text-sm font-semibold ${
+                      viewMode === m
+                        ? 'border-[var(--ink)] bg-[var(--ink)] text-[var(--paper)]'
+                        : 'border-[var(--rule-strong)] hover:bg-[var(--paper-inset)]'
+                    }`}
+                  >
+                    {m === 'resource' ? 'By resource' : 'Consolidated'}
+                  </button>
+                ))}
               </div>
-            ))
-          )}
-        </div>
+              {viewMode === 'resource' && resourceIds.length > 0 && (
+                <label className="min-w-48 flex-1 text-sm">
+                  <span className="field-label">Resource</span>
+                  <select value={activeResource} onChange={(e) => setResourceId(e.target.value)} className="field-select">
+                    {resourceIds.map((id) => (
+                      <option key={id} value={id}>
+                        {resourceLabel(id)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+            </>
+          ) : undefined
+        }
+      />
+       {timetablesQuery.isLoading || versionsQuery.isLoading || timetableQuery.isLoading || slotsQuery.isLoading ? (
+         <LoadingState label="Loading master timetable" />
+       ) : timetablesQuery.error || versionsQuery.error || timetableQuery.error || slotsQuery.error || versionQuery.error ? (
+         <ErrorState title="Master timetable did not load" description="The selected timetable or its template slots could not be read. No empty fallback is shown." retry={<button className="min-h-[44px] border border-[var(--rule-strong)] px-4 py-2 font-semibold" onClick={() => { void timetablesQuery.refetch(); void versionsQuery.refetch(); void timetableQuery.refetch(); void slotsQuery.refetch(); void versionQuery.refetch(); }}>Retry timetable</button>} />
+       ) : !versionId ? (
+        <EmptyState
+          title="Select a timetable version to read the master"
+          description="The master binds rooms to periods. It appears after generation and validation."
+        />
+       ) : (
+        <>
+          <p className="flex flex-wrap gap-2">
+            <Badge tone="neutral">
+              {allEntries.length} placed sessions
+            </Badge>
+            <Badge tone="neutral">{resourceIds.length} resources in use</Badge>
+            {viewMode === 'resource' && activeResource && (
+              <Badge tone="lab">Room {resourceLabel(activeResource)}</Badge>
+            )}
+          </p>
+           <TimetableGrid entries={entries} periods={(slotsQuery.data ?? []).filter((slot) => slot.slot_type === 'TEACHING').map((slot) => ({ period_number: slot.period_number, start_time: slot.start_time, end_time: slot.end_time }))} caption="Master timetable grid" />
+        </>
       )}
     </div>
   );

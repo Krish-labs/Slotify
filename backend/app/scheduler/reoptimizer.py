@@ -149,6 +149,9 @@ class Reoptimizer:
         current_entries: list[dict],
         change_type: str | None = None,
         change_data: dict | None = None,
+        two_hour_grid: bool = False,
+        blocked_faculty_slots: set[tuple[UUID, UUID]] | None = None,
+        blocked_resource_slots: set[tuple[UUID, UUID]] | None = None,
     ) -> SolverInput:
         """Build the solver input for one reoptimization step.
 
@@ -206,6 +209,9 @@ class Reoptimizer:
             pinned_constraints=pinned_constraints,
             pinned_entries=pinned_entries,
             unavailable=unavailable,
+            two_hour_grid=two_hour_grid,
+            blocked_faculty_slots=blocked_faculty_slots or set(),
+            blocked_resource_slots=blocked_resource_slots or set(),
         )
 
     def reoptimize(

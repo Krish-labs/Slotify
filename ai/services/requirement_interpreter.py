@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 
 class RequirementInterpreter:
@@ -10,7 +10,6 @@ class RequirementInterpreter:
         if not self.llm_client:
             return self._mock_interpret(requirement)
 
-        # Real implementation would call LLM
         return self._mock_interpret(requirement)
 
     def _mock_interpret(self, requirement: str) -> Dict:

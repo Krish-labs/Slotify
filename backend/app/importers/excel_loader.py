@@ -16,6 +16,14 @@ class ExcelLoader:
         df = pd.read_excel(path)
         return df
 
+    def is_source_load_distribution(self, file_path: str) -> bool:
+        frame = pd.read_excel(file_path, sheet_name=0, header=None, nrows=110)
+        for _, row in frame.iterrows():
+            values = [str(value).strip() for value in row.iloc[:2].tolist()]
+            if values[0].lower().startswith("sr.") and values[1] == "Name of Faculty":
+                return True
+        return False
+
     def load_timetable(self, file_path: str) -> pd.DataFrame:
         """Load timetable Excel file"""
         path = Path(file_path)

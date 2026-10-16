@@ -71,24 +71,160 @@ class AssignmentDerivationService:
         errors = []
 
         for load in loads:
-            try:
-                # Check if assignment already exists
-                existing = await self._check_existing_assignment(load)
-                if existing and not force:
-                    skipped_count += 1
-                    continue
-
-                # Derive assignments from load
-                assignments_created = await self._derive_from_load(load, user_id)
-                derived_count += assignments_created
-
-            except Exception as e:
-                errors.append(f"Load {load.id}: {str(e)}")
+            outcome = await self.derive_load(load, user_id, force=force)
+            derived_count += outcome["derived"]
+            skipped_count += outcome["skipped"]
+            errors.extend(outcome["errors"])
         return {
             "derived": derived_count,
             "skipped": skipped_count,
             "errors": errors,
         }
+
+    async def derive_load(self, load: FacultyLoad, user_id: UUID, force: bool = False) -> dict:
+        """Derive the assignments for exactly one load, idempotently.
+
+        Existence is checked per component (lecture/practical/tutorial/
+        project): a load whose lecture already exists but whose practical does
+        not derives only the practical. Re-running derivation therefore never
+        duplicates assignments.
+        """
+        derived_count = 0
+        skipped_count = 0
+        try:
+            components = self._planned_components(load)
+        except ValueError as e:
+            return {"derived": 0, "skipped": 0, "errors": [f"Load {load.id}: {str(e)}"]}
+
+        for session_type, hours, batch_id, extra in components:
+            try:
+                existing = await self._check_existing_component(load, session_type, batch_id)
+                if existing and not force:
+                    skipped_count += 1
+                    continue
+                await self._create_component(load, session_type, hours, batch_id, extra)
+                derived_count += 1
+            except Exception as e:
+                return {
+                    "derived": derived_count,
+                    "skipped": skipped_count,
+                    "errors": [f"Load {load.id}: {str(e)}"],
+                }
+
+        if derived_count > 0:
+            # Audit log
+            audit = AuditLog(
+                user_id=user_id,
+                action="DERIVE",
+                entity_type="TEACHING_ASSIGNMENT",
+                entity_id=load.id,
+                new_values={
+                    "source_load_id": str(load.id),
+                    "assignments_created": derived_count,
+                    "theory_hours": load.theory_hours,
+                    "practical_hours": load.practical_hours,
+                    "tutorial_hours": load.tutorial_hours,
+                    "project_hours": load.project_hours,
+                },
+            )
+            self.db.add(audit)
+
+        return {"derived": derived_count, "skipped": skipped_count, "errors": []}
+
+    def _planned_components(self, load: FacultyLoad) -> list:
+        """Validate once, then list (session_type, hours, batch_id, extra)."""
+        # Validate before adding anything, so a bad load never leaves a partial derivation.
+        if load.practical_hours > 0:
+            if not load.batch_id:
+                # Cannot create practical without batch - flag as ambiguous
+                raise ValueError(
+                    f"Load {load.id} has practical hours ({load.practical_hours}) "
+                    "but no batch assigned. Practical sessions require batch-level assignment."
+                )
+            duration = load.session_duration or 1
+            if load.practical_hours % duration != 0:
+                raise ValueError(
+                    f"Load {load.id} has {load.practical_hours} practical hours that cannot be "
+                    f"split into sessions of {duration} consecutive periods."
+                )
+
+        # Map required resource type for practical sessions
+        required_lab_type = self._map_resource_type(load.required_resource_type)  # type: ignore[arg-type]
+
+        components: list[tuple] = []
+        if load.theory_hours > 0:
+            # Theory is section-level.
+            components.append((TeachingAssignmentSessionType.LECTURE, load.theory_hours, None, {}))
+        if load.practical_hours > 0:
+            components.append(
+                (
+                    TeachingAssignmentSessionType.PRACTICAL,
+                    load.practical_hours,
+                    load.batch_id,
+                    {
+                        # session_duration applies to practicals (multi-period lab blocks);
+                        # lectures, tutorials and projects are single-period sessions.
+                        "session_duration": load.session_duration or 1,
+                        "required_lab_type": required_lab_type,
+                    },
+                )
+            )
+        if load.tutorial_hours > 0:
+            components.append(
+                (
+                    TeachingAssignmentSessionType.TUTORIAL,
+                    load.tutorial_hours,
+                    load.batch_id,  # Tutorials can be batch or section level
+                    {},
+                )
+            )
+        if load.project_hours > 0:
+            components.append(
+                (
+                    TeachingAssignmentSessionType.PROJECT,
+                    load.project_hours,
+                    load.batch_id,
+                    {},
+                )
+            )
+        return components
+
+    async def _check_existing_component(
+        self, load: FacultyLoad, session_type, batch_id
+    ) -> TeachingAssignment | None:
+        query = select(TeachingAssignment).where(
+            TeachingAssignment.faculty_id == load.faculty_id,
+            TeachingAssignment.academic_term_id == load.academic_term_id,
+            TeachingAssignment.subject_id == load.subject_id,
+            TeachingAssignment.section_id == load.section_id,
+            TeachingAssignment.session_type == session_type,
+        )
+        if batch_id is None:
+            query = query.where(TeachingAssignment.batch_id.is_(None))
+        else:
+            query = query.where(TeachingAssignment.batch_id == batch_id)
+
+        result = await self.db.execute(query)
+        return result.scalar_one_or_none()
+
+    async def _create_component(
+        self, load: FacultyLoad, session_type, hours: int, batch_id, extra: dict
+    ) -> None:
+        self.db.add(
+            TeachingAssignment(
+                faculty_id=load.faculty_id,
+                academic_term_id=load.academic_term_id,
+                subject_id=load.subject_id,
+                section_id=load.section_id,
+                batch_id=batch_id,
+                session_type=session_type,
+                hours_per_week=hours,
+                session_duration=extra.get("session_duration", 1),
+                required_lab_type=extra.get("required_lab_type"),
+                preferred_days=[],
+                preferred_shifts=[],
+            )
+        )
 
     async def _check_existing_assignment(self, load: FacultyLoad) -> TeachingAssignment | None:
         target_session_type = self._map_session_type(load.session_type)  # type: ignore[arg-type]
@@ -110,117 +246,6 @@ class AssignmentDerivationService:
 
         result = await self.db.execute(query)
         return result.scalar_one_or_none()
-
-    async def _derive_from_load(self, load: FacultyLoad, user_id: UUID) -> int:
-        """Create TeachingAssignment records from a FacultyLoad"""
-
-        assignments_created = 0
-
-        # Validate before adding anything, so a bad load never leaves a partial derivation.
-        if load.practical_hours > 0:
-            if not load.batch_id:
-                # Cannot create practical without batch - flag as ambiguous
-                raise ValueError(
-                    f"Load {load.id} has practical hours ({load.practical_hours}) "
-                    "but no batch assigned. Practical sessions require batch-level assignment."
-                )
-            duration = load.session_duration or 1
-            if load.practical_hours % duration != 0:
-                raise ValueError(
-                    f"Load {load.id} has {load.practical_hours} practical hours that cannot be "
-                    f"split into sessions of {duration} consecutive periods."
-                )
-
-        # Map required resource type for practical sessions
-        required_lab_type = self._map_resource_type(load.required_resource_type)  # type: ignore[arg-type]
-
-        # Create assignments based on session types and hours
-        if load.theory_hours > 0:
-            assignment = TeachingAssignment(
-                faculty_id=load.faculty_id,
-                academic_term_id=load.academic_term_id,
-                subject_id=load.subject_id,
-                section_id=load.section_id,
-                batch_id=None,  # Theory is typically section-level
-                session_type=TeachingAssignmentSessionType.LECTURE,
-                hours_per_week=load.theory_hours,
-                required_lab_type=None,
-                preferred_days=[],
-                preferred_shifts=[],
-            )
-            self.db.add(assignment)
-            assignments_created += 1
-
-        if load.practical_hours > 0:
-            assignment = TeachingAssignment(
-                faculty_id=load.faculty_id,
-                academic_term_id=load.academic_term_id,
-                subject_id=load.subject_id,
-                section_id=load.section_id,
-                batch_id=load.batch_id,
-                session_type=TeachingAssignmentSessionType.PRACTICAL,
-                hours_per_week=load.practical_hours,
-                # session_duration applies to practicals (multi-period lab blocks);
-                # lectures, tutorials and projects are single-period sessions.
-                session_duration=load.session_duration or 1,
-                required_lab_type=required_lab_type,
-                preferred_days=[],
-                preferred_shifts=[],
-            )
-            self.db.add(assignment)
-            assignments_created += 1
-
-        if load.tutorial_hours > 0:
-            assignment = TeachingAssignment(
-                faculty_id=load.faculty_id,
-                academic_term_id=load.academic_term_id,
-                subject_id=load.subject_id,
-                section_id=load.section_id,
-                batch_id=load.batch_id,  # Tutorials can be batch or section level
-                session_type=TeachingAssignmentSessionType.TUTORIAL,
-                hours_per_week=load.tutorial_hours,
-                required_lab_type=None,
-                preferred_days=[],
-                preferred_shifts=[],
-            )
-            self.db.add(assignment)
-            assignments_created += 1
-
-        if load.project_hours > 0:
-            assignment = TeachingAssignment(
-                faculty_id=load.faculty_id,
-                academic_term_id=load.academic_term_id,
-                subject_id=load.subject_id,
-                section_id=load.section_id,
-                batch_id=load.batch_id,
-                session_type=TeachingAssignmentSessionType.PROJECT,
-                hours_per_week=load.project_hours,
-                required_lab_type=None,
-                preferred_days=[],
-                preferred_shifts=[],
-            )
-            self.db.add(assignment)
-            assignments_created += 1
-
-        if assignments_created > 0:
-            # Audit log
-            audit = AuditLog(
-                user_id=user_id,
-                action="DERIVE",
-                entity_type="TEACHING_ASSIGNMENT",
-                entity_id=load.id,
-                new_values={
-                    "source_load_id": str(load.id),
-                    "assignments_created": assignments_created,
-                    "theory_hours": load.theory_hours,
-                    "practical_hours": load.practical_hours,
-                    "tutorial_hours": load.tutorial_hours,
-                    "project_hours": load.project_hours,
-                },
-            )
-            self.db.add(audit)
-
-        return assignments_created
 
     def _map_session_type(
         self, load_session_type: FacultyLoadSessionType

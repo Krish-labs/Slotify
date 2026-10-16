@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Import load distribution from Excel file.
-Usage: python scripts/import_data.py --file data/raw/Load_Distribution.xlsx
+Usage: python scripts/import_data.py --file data/raw/Load Distribution.xlsx
 """
 
 import asyncio
@@ -20,8 +20,6 @@ import app.database.models  # noqa: E402, F401 – ensure all models are registe
 async def main():
     parser = argparse.ArgumentParser(description="Import load distribution from Excel")
     parser.add_argument("--file", required=True, help="Path to Excel file")
-    parser.add_argument("--academic-year", default="2025-26", help="Academic year")
-    parser.add_argument("--semester", type=int, default=3, help="Semester number")
     args = parser.parse_args()
 
     # Ensure tables exist (idempotent)

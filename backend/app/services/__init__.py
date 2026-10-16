@@ -7,6 +7,7 @@ from app.services.impact_analysis_service import ImpactAnalysisService
 from app.services.leave_service import LeaveService
 from app.services.load_service import LoadService
 from app.services.notification_service import NotificationService
+from app.services.repair_service import RepairService
 from app.services.resource_service import ResourceService
 from app.services.timetable_service import TimetableService
 from app.services.version_service import VersionService
@@ -21,6 +22,7 @@ __all__ = [
     "LeaveService",
     "LoadService",
     "NotificationService",
+    "RepairService",
     "ResourceService",
     "TimetableService",
     "VersionService",

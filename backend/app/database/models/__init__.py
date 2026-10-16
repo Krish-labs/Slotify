@@ -6,6 +6,7 @@ from app.database.models.class_model import Class
 from app.database.models.faculty import Faculty
 from app.database.models.faculty_load import FacultyLoad
 from app.database.models.leave import Leave
+from app.database.models.load_distribution_source import LoadDistributionSourceRow
 from app.database.models.notification import Notification
 from app.database.models.permission import Permission
 from app.database.models.resource import Resource
@@ -48,5 +49,6 @@ __all__ = [
     "Substitution",
     "Notification",
     "AuditLog",
+    "LoadDistributionSourceRow",
     "AcademicTerm",
 ]

@@ -69,7 +69,7 @@ class NotificationService:
         if unread_only:
             query = query.where(Notification.is_read.is_(False))
         result = await self.db.execute(query)
-        return result.scalars().all()
+        return list(result.scalars().all())
 
     async def mark_as_read(self, notification_id: UUID) -> Notification | None:
         result = await self.db.execute(

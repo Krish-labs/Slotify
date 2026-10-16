@@ -171,11 +171,15 @@ async def _main() -> None:
     if reaped:
         logger.info("Reconciled %d stale RUNNING job(s) to FAILED", reaped)
 
-    redis = get_redis()
+    redis = None
     try:
+        redis = get_redis()
         await run_forever(redis, TimetableWorker(), stop)
     finally:
-        await redis.close()
+        if redis is not None:
+            close = getattr(redis, "aclose", None) or getattr(redis, "close", None)
+            if close is not None:
+                await close()
 
 
 def main() -> None:

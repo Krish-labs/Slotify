@@ -87,6 +87,16 @@ def test_same_batch_cannot_have_two_sessions_at_once_including_projects():
     assert result.status_name == "INFEASIBLE"
 
 
+def test_project_with_stale_batch_id_remains_section_level():
+    section = _id()
+    project_a = _assignment(section, "PROJECT", hours=1, batch_id=_id())
+    project_b = _assignment(section, "PROJECT", hours=1, batch_id=_id())
+
+    result = _solver().solve(SolverInput([project_a, project_b], _rooms(), _slots(1)))
+
+    assert result.status_name == "INFEASIBLE"
+
+
 def test_section_level_tutorial_without_batch_conflicts_like_a_lecture():
     section = _id()
     lecture = _assignment(section, "LECTURE", hours=1)

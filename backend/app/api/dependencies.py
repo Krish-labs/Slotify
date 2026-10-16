@@ -1,6 +1,7 @@
 from fastapi import Depends, HTTPException, status
 
 from app.api.auth import get_current_user
+from app.core.config import settings
 from app.core.permissions import ROLE_PERMISSIONS, Permission, Role
 from app.database.connection import get_db
 from app.database.models.user import User
@@ -22,6 +23,9 @@ def require_roles(*allowed_roles: Role | str):
     allowed = {Role(r).value for r in allowed_roles}
 
     async def role_checker(current_user: User = Depends(get_current_user)) -> User:
+        if settings.LOCAL_AUTH_DISABLED:
+            return current_user
+
         if current_user.is_superuser:
             return current_user
 
@@ -43,6 +47,9 @@ def require_permissions(*required_permissions: Permission):
     """
 
     async def permission_checker(current_user: User = Depends(get_current_user)) -> User:
+        if settings.LOCAL_AUTH_DISABLED:
+            return current_user
+
         if current_user.is_superuser:
             return current_user
 

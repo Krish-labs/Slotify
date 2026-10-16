@@ -51,6 +51,9 @@ frontend/.vite/
 .env.local
 .env.*
 .env.*.local
+# Production env files stay ignored, but documented templates are tracked.
+!.env.example
+!.env.prod.example
 
 # Data - never commit raw source files
 data/raw/*.xlsx
@@ -66,5 +69,54 @@ outputs/validation/*
 !outputs/validation/.gitkeep
 !outputs/logs/.gitkeep
 
+# Confidential scheduling outputs
+/backend/outputs/class-mapping.csv
+/backend/outputs/mapping-review.csv
+/backend/outputs/reconciliation-summary.csv
+/backend/outputs/zero-load-dispositions.csv
+/outputs/workload-acceptance-20261015/demand-reconciliation.csv
+/outputs/workload-acceptance-20261015/demand-summary.csv
+/outputs/workload-acceptance-20261015/source-row-dispositions.csv
+/outputs/workload-acceptance-20261015/authoritative-mapping-review-template.csv
+
 # Docker
 docker-compose.override.yml
+
+# Ruflo local secrets and runtime data
+.claude-flow/data/
+.claude-flow/logs/
+.claude-flow/sessions/
+.claude-flow/agents/store.json
+.claude-flow/embeddings.json
+.claude-flow/harness-active-policy.json
+.claude-flow/memory-package.json
+.claude-flow/memory/
+.claude-flow/mods/
+.claude-flow/plugins/node_modules/
+.claude-flow/plugins/
+.claude-flow/routing-outcomes.json
+.claude-flow/graph/
+.claude-flow/metrics/
+.claude-flow/policy/
+.claude-flow/security/
+.claude-flow/tasks/
+.claude-flow/swarm/
+.swarm/
+.playwright-cli/
+
+# Local diagnostic reports
+pyright_output*.txt
+
+# Codex local configuration
+.codex/
+
+# Local Claude configuration and generated scans
+.claude/settings.local.json
+.claude/settings.json.bak-*
+.claude/security-scans/
+
+# Generated render artifacts
+/renders/
+
+# Claude Flow runtime data
+# Environment variables

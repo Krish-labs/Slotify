@@ -1,5 +1,4 @@
-import json
-from typing import Dict, List, Optional
+from typing import Dict, List
 from pathlib import Path
 
 
@@ -18,12 +17,6 @@ class ConstraintParser:
         """Parse natural language into structured constraints."""
         if not self.llm_client:
             return self._mock_parse(natural_language)
-
-        # In real implementation, call LLM with prompt
-        # response = await self.llm_client.complete(
-        #     prompt=self.prompt_template + f"\n\nInput: {natural_language}\nOutput:"
-        # )
-        # return json.loads(response)
 
         return self._mock_parse(natural_language)
 
@@ -53,7 +46,7 @@ class ConstraintParser:
                 "priority": "medium"
             }
 
-        if "maintenance" in text_lower or "unavailable" in text_lower:
+        if "maintenance" in text_lower:
             return {
                 "type": "resource_unavailability",
                 "resource_id": "unknown",

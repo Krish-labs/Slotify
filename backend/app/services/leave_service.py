@@ -25,7 +25,7 @@ def _serialize_for_audit(data: dict) -> dict:
 
     result: dict = {}
     for k, v in data.items():
-        if isinstance(v, (date, datetime)):
+        if isinstance(v, date | datetime):
             result[k] = v.isoformat()
         elif isinstance(v, UUID):
             result[k] = str(v)

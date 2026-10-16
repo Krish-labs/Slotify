@@ -1,40 +1,64 @@
 import { useQuery } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import { Users, Building2, Clock, AlertTriangle } from 'lucide-react';
-import { academicTermApi, facultyApi, timetableApi, leaveApi } from '../api';
+import { academicTermApi, facultyApi, timetableApi, leaveApi, resourceApi } from '../api';
 import type { AcademicTerm } from '../api/types';
+import { ErrorState, LoadingState } from '../components/ui/States';
 
 export function Dashboard() {
-  const { data: academicTerms } = useQuery({
-    queryKey: ['academicTerms'],
-    queryFn: () => academicTermApi.list({ page_size: 1 }),
+  const academicTermsQuery = useQuery({
+    queryKey: ['academicTerms', { page_size: 100 }],
+    queryFn: () => academicTermApi.list({ page_size: 100 }),
   });
+  const { data: academicTerms } = academicTermsQuery;
 
   const currentTerm = academicTerms?.items.find((t: AcademicTerm) => t.is_current) || academicTerms?.items[0];
 
-  const { data: facultyData } = useQuery({
+  const facultyQuery = useQuery({
     queryKey: ['faculty', 'count'],
     queryFn: () => facultyApi.list({ page_size: 1 }),
-    enabled: !!currentTerm,
   });
+  const { data: facultyData } = facultyQuery;
 
-  const { data: timetables } = useQuery({
+  const timetablesQuery = useQuery({
     queryKey: ['timetables'],
     queryFn: () => timetableApi.list(),
   });
+  const { data: timetables } = timetablesQuery;
 
-  const { data: leaves } = useQuery({
+  const leavesQuery = useQuery({
     queryKey: ['leaves', 'pending'],
     queryFn: () => leaveApi.list({ status: 'PENDING' }),
   });
+  const { data: leaves } = leavesQuery;
+
+  const resourcesQuery = useQuery({
+    queryKey: ['resources', 'count'],
+    queryFn: () => resourceApi.list({ page_size: 1 }),
+  });
+
+  const queries = [academicTermsQuery, facultyQuery, timetablesQuery, leavesQuery, resourcesQuery];
+  if (queries.some((query) => query.isLoading)) {
+    return <LoadingState label="Loading planning desk" />;
+  }
+  if (queries.some((query) => query.error)) {
+    return (
+      <ErrorState
+        title="Dashboard data did not load"
+        description="The planning desk could not read the current records. No fallback numbers are shown."
+        retry={<button className="min-h-[44px] border border-[var(--rule-strong)] px-4 py-2 font-semibold" onClick={() => queries.forEach((query) => query.refetch())}>Retry dashboard</button>}
+      />
+    );
+  }
 
   const facultyCount = facultyData?.total || 0;
   const timetableCount = timetables?.timetables?.length || 0;
   const pendingLeavesCount = leaves?.leaves?.length || 0;
-  const resourceCount = 0;
+  const resourceCount = resourcesQuery.data?.total || 0;
 
   const stats = [
     { name: 'Total Faculty', value: String(facultyCount), icon: Users, color: 'bg-blue-500' },
-    { name: 'Classrooms', value: String(resourceCount), icon: Building2, color: 'bg-green-500' },
+    { name: 'Resources', value: String(resourceCount), icon: Building2, color: 'bg-green-500' },
     { name: 'Timetables', value: String(timetableCount), icon: Clock, color: 'bg-purple-500' },
     { name: 'Pending Leaves', value: String(pendingLeavesCount), icon: AlertTriangle, color: 'bg-orange-500' },
   ];
@@ -103,18 +127,18 @@ export function Dashboard() {
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
           <div className="space-y-3">
-            <button className="w-full p-3 text-left bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
+            <Link to="/editorial/load" className="block w-full rounded-lg bg-blue-50 p-3 text-left transition-colors hover:bg-blue-100">
               <span className="font-medium text-blue-700">Import Load Distribution</span>
               <p className="text-sm text-gray-500">Upload Excel file to update faculty loads</p>
-            </button>
-            <button className="w-full p-3 text-left bg-green-50 rounded-lg hover:bg-green-100 transition-colors">
+            </Link>
+            <Link to="/timetables/generate" className="block w-full rounded-lg bg-green-50 p-3 text-left transition-colors hover:bg-green-100">
               <span className="font-medium text-green-700">Generate Timetable</span>
               <p className="text-sm text-gray-500">Create new timetable for current semester</p>
-            </button>
-            <button className="w-full p-3 text-left bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors">
+            </Link>
+            <Link to="/timetables/master" className="block w-full rounded-lg bg-purple-50 p-3 text-left transition-colors hover:bg-purple-100">
               <span className="font-medium text-purple-700">View Master Timetable</span>
               <p className="text-sm text-gray-500">Check current approved timetable</p>
-            </button>
+            </Link>
           </div>
         </div>
       </div>

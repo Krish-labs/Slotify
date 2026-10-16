@@ -1,18 +1,22 @@
 import contextlib
 import json
 import os
+import tempfile
 import uuid as uuid_module
 from hashlib import sha256
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from fastapi.responses import Response
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.dependencies import get_db, require_permissions
 from app.core.permissions import Permission
+from app.core.workbook_paths import source_workbook_path, timing_reference_path
 from app.database.models import (
     AcademicTerm,
     Resource,
@@ -31,13 +35,19 @@ from app.exporters.class_timetable_exporter import ClassTimetableExporter
 from app.exporters.faculty_timetable_exporter import FacultyTimetableExporter
 from app.exporters.master_timetable_exporter import MasterTimetableExporter
 from app.exporters.resource_allocation_exporter import ResourceAllocationExporter
+from app.scheduler.workbook_demand import parse_workbook_demand
+from app.schemas.repair import DEFAULT_MAX_REPAIR_ATTEMPTS
 from app.schemas.timetable import TimetableCreate
+from app.services.generation_readiness import build_readiness_report
+from app.services.load_source_service import WorkbookParseError
+from app.services.repair_service import RepairService
 from app.services.timetable_state import (
     InvalidTransition,
     apply_version_transition,
     latest_version_for_timetable,
     mirror_timetable_status,
 )
+from app.services.timing_reference import reference_teaching_times
 from app.services.validation_context import (
     build_version_validation_context,
     validate_version_entries,
@@ -60,6 +70,31 @@ async def _get_timetable_or_404(db: AsyncSession, timetable_id: UUID) -> Timetab
     return timetable
 
 
+def _parse_uuid_or_404(raw: str, label: str = "id") -> UUID:
+    """Parse user-controlled IDs as 404, not 500.
+
+    ``UUID("not-a-uuid")`` raises ``ValueError``; without this helper every
+    timetable/version route answers 500 on malformed input (log noise +
+    fingerprinting). Callers pass the already-validated UUID onward.
+    """
+    try:
+        return UUID(raw)
+    except (ValueError, AttributeError, TypeError):
+        raise HTTPException(status_code=404, detail=f"{label} not found") from None
+
+
+def _temp_export_path(prefix: str, timetable_id: UUID | str) -> str:
+    """Unique per-request export path (no predictable /tmp collisions).
+
+    Predictable ``/tmp/export_<kind>_<id>.xlsx`` names allow cross-user
+    overwrite races and symlink pre-creation on shared /tmp. A random suffix
+    keeps the file private to this request; ``_stream_export`` unlinks it.
+    """
+    fd, path = tempfile.mkstemp(prefix=f"{prefix}_{timetable_id}_", suffix=".xlsx")
+    os.close(fd)
+    return path
+
+
 async def _get_version_or_404(
     db: AsyncSession, timetable_id: UUID, version_id: UUID
 ) -> TimetableVersion:
@@ -75,6 +110,32 @@ async def _get_version_or_404(
     ).scalar_one_or_none()
     if not version:
         raise HTTPException(status_code=404, detail="Version not found")
+    return version
+
+
+EXPORTABLE_VERSION_STATUSES = ("GENERATED", "VALIDATED", "APPROVED", "PUBLISHED")
+
+
+async def _get_export_version(
+    db: AsyncSession, timetable_id: UUID, version_id: str | None
+) -> TimetableVersion:
+    if version_id:
+        version = await _get_version_or_404(db, timetable_id, _parse_uuid_or_404(version_id, "Version"))
+        if version.status not in EXPORTABLE_VERSION_STATUSES:
+            raise HTTPException(status_code=409, detail="Selected version is not exportable")
+        return version
+
+    version = (
+        await db.execute(
+            select(TimetableVersion)
+            .where(TimetableVersion.timetable_id == timetable_id)
+            .where(TimetableVersion.status.in_(EXPORTABLE_VERSION_STATUSES))
+            .order_by(TimetableVersion.version_number.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    if not version:
+        raise HTTPException(status_code=404, detail="No validated version found for this timetable")
     return version
 
 
@@ -211,7 +272,7 @@ async def get_timetable(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_permissions(Permission.TIMETABLE_READ)),
 ):
-    timetable = await _get_timetable_or_404(db, UUID(timetable_id))
+    timetable = await _get_timetable_or_404(db, _parse_uuid_or_404(timetable_id, "Timetable"))
     return {
         "id": str(timetable.id),
         "name": timetable.name,
@@ -235,7 +296,7 @@ async def generate_timetable(
     The actor is always the authenticated principal; generation runs inline and
     owns one write transaction (see TimetableWorker._generate).
     """
-    timetable = await _get_timetable_or_404(db, UUID(timetable_id))
+    timetable = await _get_timetable_or_404(db, _parse_uuid_or_404(timetable_id, "Timetable"))
     worker = TimetableWorker()
     result = await worker.generate_timetable(timetable.id, requested_by=current_user.id)
     if "error" in result:
@@ -243,6 +304,171 @@ async def generate_timetable(
         # outcomes, not 500s: the request itself succeeded.
         raise HTTPException(status_code=422, detail=result)
     return result
+
+
+@router.get("/{timetable_id}/workbook-readiness")
+async def get_workbook_readiness(
+    timetable_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_permissions(Permission.TIMETABLE_READ)),
+):
+    """Parse the immutable source workbook without persisting or scheduling."""
+    timetable = await _get_timetable_or_404(db, _parse_uuid_or_404(timetable_id, "Timetable"))
+    source = source_workbook_path()
+    reference = timing_reference_path()
+    if not source.exists():
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": "Source workbook not found",
+                "stage": "source_workbook",
+                "source_file": str(source),
+                "details": [
+                    "Check that data/raw/Load Distribution.xlsx is mounted at /app/data in Docker."
+                ],
+            },
+        )
+    try:
+        parsed = parse_workbook_demand(
+            source,
+            timetable.academic_year,
+            timetable.semester,
+            reference,
+            slot_hours=1,
+        )
+    except WorkbookParseError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": "Unable to parse the source workbook",
+                "stage": "source_workbook",
+                "source_file": source.name,
+                "details": [str(exc)],
+                "sheet": exc.sheet,
+                "row": exc.row,
+                "field": exc.field,
+            },
+        ) from exc
+    except (OSError, ValueError) as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": "Unable to parse the source workbook",
+                "stage": "source_workbook",
+                "source_file": source.name,
+                "details": [str(exc)],
+            },
+        ) from exc
+    if not reference.exists():
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": "Timing reference workbook not found",
+                "stage": "timing_reference",
+                "source_file": reference.name,
+                "details": ["The timetable workbook is used only for its teaching-time intervals."],
+            },
+        )
+    try:
+        timing_intervals = reference_teaching_times(reference)
+    except (OSError, ValueError) as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": "Unable to parse the timing reference workbook",
+                "stage": "timing_reference",
+                "source_file": reference.name,
+                "details": [str(exc)],
+            },
+        ) from exc
+    return {
+        "timetable_id": str(timetable.id),
+        "source_file": source.name,
+        "reference_file": reference.name,
+        "timing_reference_available": reference.exists(),
+        "timing_intervals": len(timing_intervals),
+        "source_sheet": "Sheet1",
+        "semester": parsed.semester,
+        "rows_read": parsed.rows_read,
+        "source_demands": len(parsed.demands),
+        "source_hours": parsed.source_hours,
+        "required_sessions": parsed.required_slots,
+        "unrepresented_hours": parsed.unrepresented_hours,
+        "invalid_rows": list(parsed.invalid_rows),
+        "excluded_rows": list(parsed.excluded_rows),
+        "row_dispositions": [
+            {
+                "source_file": parsed.source_file,
+                "source_sheet": "Sheet1",
+                "source_row_number": disposition.source_row_number,
+                "disposition": disposition.disposition,
+                "reason": disposition.reason,
+            }
+            for disposition in parsed.row_dispositions
+        ],
+        "zero_load_rows": [
+            {
+                "source_row_number": z.source_row_number,
+                "faculty_name": z.faculty_name,
+                "class_name": z.class_name,
+                "subject_name": z.subject_name,
+                "theory": z.theory,
+                "practical": z.practical,
+                "tutorial": z.tutorial,
+                "project_stage": z.project_stage,
+                "total_load": z.total_load,
+            }
+            for z in parsed.zero_load_rows
+        ],
+        "ready": (
+            bool(parsed.demands)
+            and not parsed.invalid_rows
+            and not parsed.has_unreviewed_zero_load
+            and reference.exists()
+        ),
+    }
+
+
+@router.post("/{timetable_id}/generate-source")
+async def generate_from_source_workbook(
+    timetable_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_permissions(Permission.TIMETABLE_GENERATE)),
+):
+    """Generate a CP-SAT timetable from Load Distribution.xlsx."""
+    timetable = await _get_timetable_or_404(db, _parse_uuid_or_404(timetable_id, "Timetable"))
+    result = await TimetableWorker().generate_from_workbook(
+        timetable.id,
+        requested_by=current_user.id,
+    )
+    if "error" in result and not result.get("success"):
+        raise HTTPException(status_code=422, detail=result)
+    return result
+
+
+@router.get("/{timetable_id}/readiness")
+async def get_generation_readiness(
+    timetable_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_permissions(Permission.TIMETABLE_READ)),
+):
+    """Pre-generation readiness: the same checks generation enforces, up front.
+
+    Lets the UI show mapping/validation errors BEFORE the solver runs (academic
+    term, approved FacultyLoad, derived TeachingAssignments, sections/batches,
+    resources, teaching time slots). Read-only.
+    """
+    timetable = await _get_timetable_or_404(db, _parse_uuid_or_404(timetable_id, "Timetable"))
+    report, _ = await build_readiness_report(db, timetable.id)
+    if report is None:  # unreachable behind _get_timetable_or_404, kept for safety
+        raise HTTPException(status_code=404, detail="Timetable not found")
+    return {
+        "timetable_id": str(timetable.id),
+        "ready": report.ready,
+        "errors": report.errors,
+        "warnings": report.warnings,
+        "checks": report.checks,
+    }
 
 
 @router.post("/{timetable_id}/reoptimize")
@@ -260,7 +486,7 @@ async def reoptimize_timetable(
     the same logical change while the job is QUEUED/RUNNING returns the
     existing job instead of creating a duplicate.
     """
-    timetable = await _get_timetable_or_404(db, UUID(timetable_id))
+    timetable = await _get_timetable_or_404(db, _parse_uuid_or_404(timetable_id, "Timetable"))
     key = _idempotency_key(timetable.id, change_data, idempotency_key)
 
     async with transaction(db):
@@ -359,9 +585,48 @@ async def get_reoptimize_result(
         await redis.close()
 
 
+class RepairRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    adjustments: list[dict[str, Any]] = Field(default_factory=list, max_length=5)
+    max_retries: int = Field(default=DEFAULT_MAX_REPAIR_ATTEMPTS, ge=1, le=5)
+    approve_hard_relaxation: bool = False
+    suggest: bool = False
+
+
+@router.post("/{timetable_id}/repair")
+async def repair_timetable(
+    timetable_id: str,
+    data: RepairRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_permissions(Permission.TIMETABLE_GENERATE)),
+):
+    """Bounded repair of a failed or incomplete timetable (at most ``max_retries`` re-solves).
+
+    Structured validation/solver diagnostics drive each revised CP-SAT solve;
+    unaffected entries stay pinned where feasible. Availability overrides
+    require ``approve_hard_relaxation``. A repaired candidate is persisted as
+    a new VALIDATED version only after independent validation passes; failed
+    repair persists nothing and returns the original diagnostics honestly.
+    """
+    timetable = await _get_timetable_or_404(db, _parse_uuid_or_404(timetable_id, "Timetable"))
+    result = await RepairService().repair_timetable(
+        timetable.id,
+        requested_by=current_user.id,
+        adjustments=data.adjustments,
+        max_retries=data.max_retries,
+        approve_hard_relaxation=data.approve_hard_relaxation,
+        suggest=data.suggest,
+    )
+    if "error" in result and not result.get("success"):
+        raise HTTPException(status_code=422, detail=result)
+    return result
+
+
 @router.post("/{timetable_id}/validate")
 async def validate_timetable(
     timetable_id: str,
+    version_id: str | None = None,
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_permissions(Permission.TIMETABLE_READ)),
 ):
@@ -372,8 +637,12 @@ async def validate_timetable(
     and required hours are all included, and an empty timetable can never
     validate vacuously.
     """
-    timetable = await _get_timetable_or_404(db, UUID(timetable_id))
-    version = await latest_version_for_timetable(db, timetable.id)
+    timetable = await _get_timetable_or_404(db, _parse_uuid_or_404(timetable_id, "Timetable"))
+    version = (
+        await _get_version_or_404(db, timetable.id, _parse_uuid_or_404(version_id, "Version"))
+        if version_id
+        else await latest_version_for_timetable(db, timetable.id)
+    )
     if not version:
         return {
             "status": "FAIL",
@@ -415,7 +684,9 @@ async def list_timetable_versions(
         (
             await db.execute(
                 select(TimetableVersion)
-                .where(TimetableVersion.timetable_id == UUID(timetable_id))
+                .where(
+                    TimetableVersion.timetable_id == _parse_uuid_or_404(timetable_id, "Timetable")
+                )
                 .order_by(TimetableVersion.version_number.desc())
             )
         )
@@ -453,10 +724,12 @@ async def get_timetable_version(
                 selectinload(TimetableVersion.entries).selectinload(TimetableEntry.faculty),
                 selectinload(TimetableVersion.entries).selectinload(TimetableEntry.section),
                 selectinload(TimetableVersion.entries).selectinload(TimetableEntry.resource),
+                selectinload(TimetableVersion.entries).selectinload(TimetableEntry.batch),
+                selectinload(TimetableVersion.entries).selectinload(TimetableEntry.time_slot),
             )
             .where(
-                TimetableVersion.timetable_id == UUID(timetable_id),
-                TimetableVersion.id == UUID(version_id),
+                TimetableVersion.timetable_id == _parse_uuid_or_404(timetable_id, "Timetable"),
+                TimetableVersion.id == _parse_uuid_or_404(version_id, "Version"),
             )
         )
     ).scalar_one_or_none()
@@ -475,6 +748,8 @@ async def get_timetable_version(
             "time_slot_id": str(e.time_slot_id) if e.time_slot_id else None,
             "day_of_week": e.day_of_week,
             "period_number": e.period_number,
+            "start_time": e.time_slot.start_time.isoformat() if e.time_slot else None,
+            "end_time": e.time_slot.end_time.isoformat() if e.time_slot else None,
             "session_type": e.session_type,
             "subject_name": e.subject.name if e.subject else None,
             "faculty_name": (
@@ -482,6 +757,7 @@ async def get_timetable_version(
             ),
             "section_name": e.section.name if e.section else None,
             "resource_name": e.resource.name if e.resource else None,
+            "batch_name": e.batch.name if e.batch else None,
         }
         for e in version.entries
     ]
@@ -512,9 +788,11 @@ async def approve_timetable_version(
     current_user=Depends(require_permissions(Permission.TIMETABLE_APPROVE)),
 ):
     """VALIDATED|UNDER_REVIEW -> APPROVED (validated, audited, notified, durable)."""
-    timetable = await _get_timetable_or_404(db, UUID(timetable_id))
+    timetable = await _get_timetable_or_404(db, _parse_uuid_or_404(timetable_id, "Timetable"))
     async with transaction(db):
-        version = await _get_version_or_404(db, timetable.id, UUID(version_id))
+        version = await _get_version_or_404(
+            db, timetable.id, _parse_uuid_or_404(version_id, "Version")
+        )
         entries_dict, required_hours = await build_version_validation_context(db, version.id)
         if not entries_dict:
             raise InvalidTransition("Version has no entries; generate a timetable first")
@@ -541,9 +819,11 @@ async def reject_timetable_version(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_permissions(Permission.TIMETABLE_APPROVE)),
 ):
-    timetable = await _get_timetable_or_404(db, UUID(timetable_id))
+    timetable = await _get_timetable_or_404(db, _parse_uuid_or_404(timetable_id, "Timetable"))
     async with transaction(db):
-        version = await _get_version_or_404(db, timetable.id, UUID(version_id))
+        version = await _get_version_or_404(
+            db, timetable.id, _parse_uuid_or_404(version_id, "Version")
+        )
         try:
             await apply_version_transition(db, version, "REJECTED", current_user.id)
         except InvalidTransition as exc:
@@ -558,9 +838,11 @@ async def submit_for_review(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_permissions(Permission.TIMETABLE_GENERATE)),
 ):
-    timetable = await _get_timetable_or_404(db, UUID(timetable_id))
+    timetable = await _get_timetable_or_404(db, _parse_uuid_or_404(timetable_id, "Timetable"))
     async with transaction(db):
-        version = await _get_version_or_404(db, timetable.id, UUID(version_id))
+        version = await _get_version_or_404(
+            db, timetable.id, _parse_uuid_or_404(version_id, "Version")
+        )
         try:
             await apply_version_transition(db, version, "UNDER_REVIEW", current_user.id)
             await mirror_timetable_status(db, timetable, "UNDER_REVIEW", current_user.id)
@@ -577,9 +859,11 @@ async def publish_timetable_version(
     current_user=Depends(require_permissions(Permission.TIMETABLE_APPROVE)),
 ):
     """APPROVED -> PUBLISHED (re-validated with the full context; durable)."""
-    timetable = await _get_timetable_or_404(db, UUID(timetable_id))
+    timetable = await _get_timetable_or_404(db, _parse_uuid_or_404(timetable_id, "Timetable"))
     async with transaction(db):
-        version = await _get_version_or_404(db, timetable.id, UUID(version_id))
+        version = await _get_version_or_404(
+            db, timetable.id, _parse_uuid_or_404(version_id, "Version")
+        )
         entries_dict, required_hours = await build_version_validation_context(db, version.id)
         validation = validate_version_entries(entries_dict, required_hours)
         try:
@@ -609,9 +893,11 @@ async def archive_timetable_version(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_permissions(Permission.TIMETABLE_APPROVE)),
 ):
-    timetable = await _get_timetable_or_404(db, UUID(timetable_id))
+    timetable = await _get_timetable_or_404(db, _parse_uuid_or_404(timetable_id, "Timetable"))
     async with transaction(db):
-        version = await _get_version_or_404(db, timetable.id, UUID(version_id))
+        version = await _get_version_or_404(
+            db, timetable.id, _parse_uuid_or_404(version_id, "Version")
+        )
         try:
             await apply_version_transition(db, version, "ARCHIVED", current_user.id)
             await mirror_timetable_status(db, timetable, "ARCHIVED", current_user.id)
@@ -631,21 +917,12 @@ async def archive_timetable_version(
 @router.get("/{timetable_id}/export/class")
 async def export_class_timetable(
     timetable_id: str,
+    version_id: str | None = None,
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_permissions(Permission.TIMETABLE_EXPORT)),
 ):
-    timetable = await _get_timetable_or_404(db, UUID(timetable_id))
-    version = (
-        await db.execute(
-            select(TimetableVersion)
-            .where(TimetableVersion.timetable_id == timetable.id)
-            .where(TimetableVersion.status.in_(("VALIDATED", "APPROVED", "PUBLISHED")))
-            .order_by(TimetableVersion.version_number.desc())
-            .limit(1)
-        )
-    ).scalar_one_or_none()
-    if not version:
-        raise HTTPException(status_code=404, detail="No validated version found for this timetable")
+    timetable = await _get_timetable_or_404(db, _parse_uuid_or_404(timetable_id, "Timetable"))
+    version = await _get_export_version(db, timetable.id, version_id)
 
     entries_dict, _required = await build_version_validation_context(db, version.id)
     sections = (
@@ -685,7 +962,7 @@ async def export_class_timetable(
     )
     resources_dict = {r.id: {"name": r.name, "resource_type": r.resource_type} for r in resources}
 
-    output_path = f"/tmp/export_class_{timetable_id}.xlsx"
+    output_path = _temp_export_path("export_class", timetable.id)
     ClassTimetableExporter().export(
         entries=entries_dict,
         sections=sections_dict,
@@ -699,23 +976,14 @@ async def export_class_timetable(
 @router.get("/{timetable_id}/export/faculty")
 async def export_faculty_timetable(
     timetable_id: str,
+    version_id: str | None = None,
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_permissions(Permission.TIMETABLE_EXPORT)),
 ):
     from app.database.models import Faculty as FacultyModel
 
-    timetable = await _get_timetable_or_404(db, UUID(timetable_id))
-    version = (
-        await db.execute(
-            select(TimetableVersion)
-            .where(TimetableVersion.timetable_id == timetable.id)
-            .where(TimetableVersion.status.in_(("VALIDATED", "APPROVED", "PUBLISHED")))
-            .order_by(TimetableVersion.version_number.desc())
-            .limit(1)
-        )
-    ).scalar_one_or_none()
-    if not version:
-        raise HTTPException(status_code=404, detail="No validated version found for this timetable")
+    timetable = await _get_timetable_or_404(db, _parse_uuid_or_404(timetable_id, "Timetable"))
+    version = await _get_export_version(db, timetable.id, version_id)
 
     entries_dict, _required = await build_version_validation_context(db, version.id)
     faculties = (
@@ -759,7 +1027,7 @@ async def export_faculty_timetable(
     )
     resources_dict = {r.id: {"name": r.name} for r in resources}
 
-    output_path = f"/tmp/export_faculty_{timetable_id}.xlsx"
+    output_path = _temp_export_path("export_faculty", timetable.id)
     FacultyTimetableExporter().export(
         entries=entries_dict,
         faculty_map=faculties_dict,
@@ -773,23 +1041,14 @@ async def export_faculty_timetable(
 @router.get("/{timetable_id}/export/master")
 async def export_master_timetable(
     timetable_id: str,
+    version_id: str | None = None,
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_permissions(Permission.TIMETABLE_EXPORT)),
 ):
     from app.database.models import Faculty as FacultyModel
 
-    timetable = await _get_timetable_or_404(db, UUID(timetable_id))
-    version = (
-        await db.execute(
-            select(TimetableVersion)
-            .where(TimetableVersion.timetable_id == timetable.id)
-            .where(TimetableVersion.status.in_(("VALIDATED", "APPROVED", "PUBLISHED")))
-            .order_by(TimetableVersion.version_number.desc())
-            .limit(1)
-        )
-    ).scalar_one_or_none()
-    if not version:
-        raise HTTPException(status_code=404, detail="No validated version found for this timetable")
+    timetable = await _get_timetable_or_404(db, _parse_uuid_or_404(timetable_id, "Timetable"))
+    version = await _get_export_version(db, timetable.id, version_id)
 
     entries_dict, _required = await build_version_validation_context(db, version.id)
     resources = (
@@ -841,7 +1100,7 @@ async def export_master_timetable(
     )
     faculty_dict = {f.id: {"first_name": f.first_name, "last_name": f.last_name} for f in faculties}
 
-    output_path = f"/tmp/export_master_{timetable_id}.xlsx"
+    output_path = _temp_export_path("export_master", timetable.id)
     MasterTimetableExporter().export(
         entries=entries_dict,
         resources=resources_dict,
@@ -856,10 +1115,12 @@ async def export_master_timetable(
 @router.get("/{timetable_id}/export/resource-allocation")
 async def export_resource_allocation(
     timetable_id: str,
+    version_id: str | None = None,
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_permissions(Permission.TIMETABLE_EXPORT)),
 ):
-    timetable = await _get_timetable_or_404(db, UUID(timetable_id))
+    timetable = await _get_timetable_or_404(db, _parse_uuid_or_404(timetable_id, "Timetable"))
+    version = await _get_export_version(db, timetable.id, version_id)
     version = (
         await db.execute(
             select(TimetableVersion)
@@ -868,14 +1129,9 @@ async def export_resource_allocation(
                 selectinload(TimetableVersion.entries).selectinload(TimetableEntry.faculty),
                 selectinload(TimetableVersion.entries).selectinload(TimetableEntry.section),
             )
-            .where(TimetableVersion.timetable_id == timetable.id)
-            .where(TimetableVersion.status.in_(("VALIDATED", "APPROVED", "PUBLISHED")))
-            .order_by(TimetableVersion.version_number.desc())
-            .limit(1)
+            .where(TimetableVersion.id == version.id)
         )
     ).scalar_one_or_none()
-    if not version:
-        raise HTTPException(status_code=404, detail="No validated version found for this timetable")
 
     entries_dict, _required = await build_version_validation_context(db, version.id)
     names = {e["id"]: e for e in entries_dict}
@@ -920,7 +1176,7 @@ async def export_resource_allocation(
         for t in time_slots
     }
 
-    output_path = f"/tmp/export_resource_allocation_{timetable_id}.xlsx"
+    output_path = _temp_export_path("export_resource_allocation", timetable.id)
     ResourceAllocationExporter().export(
         entries=entries_dict,
         resources=resources_dict,
@@ -936,7 +1192,7 @@ async def export_change_history(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_permissions(Permission.TIMETABLE_EXPORT)),
 ):
-    timetable = await _get_timetable_or_404(db, UUID(timetable_id))
+    timetable = await _get_timetable_or_404(db, _parse_uuid_or_404(timetable_id, "Timetable"))
     versions = (
         (
             await db.execute(
@@ -948,6 +1204,6 @@ async def export_change_history(
         .scalars()
         .all()
     )
-    output_path = f"/tmp/export_change_history_{timetable_id}.xlsx"
+    output_path = _temp_export_path("export_change_history", timetable.id)
     ChangeHistoryExporter().export(versions, output_path)
     return await _stream_export(output_path, f"change_history_{timetable_id}.xlsx")

@@ -79,7 +79,7 @@ class FacultyService:
 
         result: dict[str, Any] = {}
         for k, v in data.items():
-            if isinstance(v, (date, datetime)):
+            if isinstance(v, date | datetime):
                 result[k] = v.isoformat()
             elif v is None:
                 result[k] = None

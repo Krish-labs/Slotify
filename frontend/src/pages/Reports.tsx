@@ -1,357 +1,231 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { FileText, Download, BarChart, AlertTriangle, CheckCircle, Clock, Users, Building2 } from 'lucide-react';
-import { timetableApi, loadApi, academicTermApi } from '../api';
-import type { TimetableValidationResponse } from '../api/types';
+import { CheckCircle, Download, FileText, Users, Building2, AlertTriangle } from 'lucide-react';
+import { academicTermApi, reportApi, timetableApi } from '../api';
+import type {
+  ConflictReport,
+  FacultyLoadReport,
+  ResourceUtilizationReport,
+  TimetableSummaryReport,
+  ValidationReport,
+} from '../api/types';
+import { PageHeader } from '../components/ui/PageHeader';
+import { Panel } from '../components/ui/Panel';
+import { Badge } from '../components/ui/Badge';
+import { EmptyState, ErrorState, LoadingState } from '../components/ui/States';
+import { DEMO_MODE } from '../demo/mode';
+import { errorMessage, latestReadableVersion } from '../utils/timetable';
 
-interface TimetableSummaryData {
-  entriesCount: number;
-  validation: TimetableValidationResponse;
-  versionNumber: number;
-  versionStatus: string;
+type ReportTab = 'summary' | 'faculty-load' | 'resource-util' | 'conflicts' | 'validation';
+
+interface SummaryData {
+  summary: TimetableSummaryReport;
+  validation: ValidationReport;
 }
 
+const reports: Array<{ id: ReportTab; name: string; icon: typeof FileText; description: string }> = [
+  { id: 'summary', name: 'Timetable Summary', icon: FileText, description: 'Filed sessions and validation status' },
+  { id: 'faculty-load', name: 'Faculty Load', icon: Users, description: 'Separate theory, practical, tutorial, and project hours' },
+  { id: 'resource-util', name: 'Resource Utilization', icon: Building2, description: 'Room and lab usage from the selected version' },
+  { id: 'conflicts', name: 'Conflicts', icon: AlertTriangle, description: 'Validation conflicts from the selected version' },
+  { id: 'validation', name: 'Validation', icon: CheckCircle, description: 'Validation response and diagnostics' },
+];
+
 export function Reports() {
-  const [activeTab, setActiveTab] = useState('summary');
-  const [selectedTimetableId, setSelectedTimetableId] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<ReportTab>('summary');
+  const [selectedTimetableId, setSelectedTimetableId] = useState('');
+  const [selectedVersionId, setSelectedVersionId] = useState('');
+  const [exportError, setExportError] = useState<string | null>(null);
 
-  const { data: timetables } = useQuery({
-    queryKey: ['timetables'],
-    queryFn: () => timetableApi.list(),
+  const timetablesQuery = useQuery({ queryKey: ['timetables'], queryFn: () => timetableApi.list() });
+  const timetables = timetablesQuery.data?.timetables;
+  const termsQuery = useQuery({
+    queryKey: ['academicTerms', { page_size: 100 }],
+    queryFn: () => academicTermApi.list({ page_size: 100 }),
   });
+  const currentTerm = termsQuery.data?.items.find((term) => term.is_current) ?? termsQuery.data?.items[0];
 
-  const { data: currentTerm } = useQuery({
-    queryKey: ['currentTerm'],
-    queryFn: () => academicTermApi.getCurrent(),
-  });
-
-  const { data: summaryData } = useQuery<TimetableSummaryData | null>({
-    queryKey: ['timetableSummary', selectedTimetableId],
-    queryFn: async () => {
-      if (!selectedTimetableId) return null;
-      const version = await timetableApi.listVersions(selectedTimetableId);
-      const latestVersion = version.versions?.[0];
-      if (!latestVersion) return null;
-      const versionData = await timetableApi.getVersion(selectedTimetableId, latestVersion.id);
-      const validation = await timetableApi.validate(selectedTimetableId);
-      return {
-        entriesCount: versionData?.entries?.length || 0,
-        validation,
-        versionNumber: latestVersion.version_number,
-        versionStatus: latestVersion.status,
-      };
-    },
+  const versionsQuery = useQuery({
+    queryKey: ['reportVersions', selectedTimetableId],
+    queryFn: () => timetableApi.listVersions(selectedTimetableId),
     enabled: !!selectedTimetableId,
   });
+  const readableVersion = latestReadableVersion(versionsQuery.data?.versions ?? []);
+  const readableVersionId = readableVersion?.id;
 
-  const { data: loadSummary } = useQuery({
-    queryKey: ['loadSummary', currentTerm?.id],
-    queryFn: () => loadApi.getLoadSummary(currentTerm!.id),
-    enabled: !!currentTerm?.id,
+  useEffect(() => {
+    if (!selectedTimetableId && timetables?.[0]) setSelectedTimetableId(timetables[0].id);
+  }, [selectedTimetableId, timetables]);
+
+  useEffect(() => {
+    if (selectedTimetableId && !selectedVersionId && readableVersionId) setSelectedVersionId(readableVersionId);
+  }, [readableVersionId, selectedTimetableId, selectedVersionId]);
+
+  const summaryQuery = useQuery<SummaryData>({
+    queryKey: ['reportSummary', selectedTimetableId, selectedVersionId],
+    queryFn: async () => {
+      const [summary, validation] = await Promise.all([
+        reportApi.timetableSummary(selectedTimetableId, selectedVersionId),
+        reportApi.validation(selectedTimetableId, selectedVersionId),
+      ]);
+      return { summary, validation };
+    },
+    enabled: activeTab === 'summary' && !!selectedTimetableId && !!selectedVersionId,
   });
 
-  const reports = [
-    { id: 'summary', name: 'Timetable Summary', icon: FileText, description: 'Overview of generated timetable' },
-    { id: 'faculty-load', name: 'Faculty Load Report', icon: Users, description: 'Faculty teaching load distribution' },
-    { id: 'resource-util', name: 'Resource Utilization', icon: Building2, description: 'Room and lab usage statistics' },
-    { id: 'conflicts', name: 'Conflict Report', icon: AlertTriangle, description: 'Detected scheduling conflicts' },
-    { id: 'validation', name: 'Validation Report', icon: CheckCircle, description: 'Timetable validation results' },
-  ];
+  const facultyLoadQuery = useQuery<FacultyLoadReport>({
+    queryKey: ['facultyLoadReport', currentTerm?.id],
+    queryFn: () => reportApi.facultyLoad(currentTerm!.id),
+    enabled: activeTab === 'faculty-load' && !!currentTerm?.id,
+  });
 
-  const handleExport = async (type: string) => {
-    if (!selectedTimetableId) return;
+  const resourceQuery = useQuery<ResourceUtilizationReport>({
+    queryKey: ['resourceUtilizationReport', selectedTimetableId, selectedVersionId],
+    queryFn: () => reportApi.resourceUtilization(selectedTimetableId, selectedVersionId),
+    enabled: activeTab === 'resource-util' && !!selectedTimetableId && !!selectedVersionId,
+  });
+
+  const conflictsQuery = useQuery<ConflictReport>({
+    queryKey: ['conflictReport', selectedTimetableId, selectedVersionId],
+    queryFn: () => reportApi.conflicts(selectedTimetableId, selectedVersionId),
+    enabled: activeTab === 'conflicts' && !!selectedTimetableId && !!selectedVersionId,
+  });
+
+  const validationQuery = useQuery<ValidationReport>({
+    queryKey: ['validationReport', selectedTimetableId, selectedVersionId],
+    queryFn: () => reportApi.validation(selectedTimetableId, selectedVersionId),
+    enabled: activeTab === 'validation' && !!selectedTimetableId && !!selectedVersionId,
+  });
+
+  const activeQuery =
+    activeTab === 'summary'
+      ? summaryQuery
+      : activeTab === 'faculty-load'
+        ? facultyLoadQuery
+        : activeTab === 'resource-util'
+          ? resourceQuery
+          : activeTab === 'conflicts'
+            ? conflictsQuery
+            : validationQuery;
+
+  const handleExport = async (kind: 'class' | 'faculty' | 'master' | 'resource') => {
+    if (DEMO_MODE) {
+      setExportError('Read-only demo mode does not create or download workbooks.');
+      return;
+    }
+    if (!selectedTimetableId || !selectedVersionId) {
+      setExportError('Select a filed timetable version before exporting.');
+      return;
+    }
     try {
-      let blob;
-      switch (type) {
-        case 'class':
-          blob = await timetableApi.exportClass(selectedTimetableId);
-          break;
-        case 'faculty':
-          blob = await timetableApi.exportFaculty(selectedTimetableId);
-          break;
-        case 'master':
-          blob = await timetableApi.exportMaster(selectedTimetableId);
-          break;
-        case 'resource':
-          blob = await timetableApi.exportResourceAllocation(selectedTimetableId);
-          break;
-        default:
-          return;
-      }
+      const blob =
+        kind === 'class'
+          ? await timetableApi.exportClass(selectedTimetableId, selectedVersionId)
+          : kind === 'faculty'
+            ? await timetableApi.exportFaculty(selectedTimetableId, selectedVersionId)
+            : kind === 'master'
+              ? await timetableApi.exportMaster(selectedTimetableId, selectedVersionId)
+              : await timetableApi.exportResourceAllocation(selectedTimetableId, selectedVersionId);
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${type}_timetable_${selectedTimetableId}.xlsx`;
-      a.click();
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${kind}_timetable_${selectedVersionId}.xlsx`;
+      link.click();
       window.URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('Failed to export:', err);
-      alert('Failed to export report');
+      setExportError(null);
+    } catch (error) {
+      setExportError(errorMessage(error, 'The report could not be exported.'));
     }
   };
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Reports</h1>
-        <p className="text-gray-500">Generate and view timetable reports</p>
-      </div>
-
-      <div className="bg-white rounded-lg shadow">
-        <div className="border-b border-gray-200">
-          <nav className="flex overflow-x-auto px-4" aria-label="Reports tabs">
-            {reports.map((report) => (
-              <button
-                key={report.id}
-                onClick={() => setActiveTab(report.id)}
-                className={`flex items-center px-4 py-4 border-b-2 text-sm font-medium transition-colors ${
-                  activeTab === report.id
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <report.icon className="w-5 h-5 mr-2" />
-                {report.name}
-              </button>
-            ))}
-          </nav>
-        </div>
-
-        <div className="p-6">
-          {activeTab === 'summary' && (
-            <div className="space-y-6">
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Select Timetable</label>
-                <select
-                  value={selectedTimetableId}
-                  onChange={(e) => setSelectedTimetableId(e.target.value)}
-                  className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Select a timetable to view summary</option>
-                  {timetables?.timetables?.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name} ({t.academic_year} Sem {t.semester}) - {t.status}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {selectedTimetableId && summaryData && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="bg-blue-50 rounded-lg p-6">
-                    <div className="flex items-center">
-                      <div className="p-3 bg-blue-600 rounded-full">
-                        <BarChart className="w-6 h-6 text-white" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm text-gray-500">Total Entries</p>
-                        <p className="text-3xl font-bold text-gray-900">{summaryData.entriesCount.toLocaleString()}</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="bg-green-50 rounded-lg p-6">
-                    <div className="flex items-center">
-                      <div className="p-3 bg-green-600 rounded-full">
-                        <CheckCircle className="w-6 h-6 text-white" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm text-gray-500">Validation Status</p>
-                        <p className="text-3xl font-bold text-gray-900">{summaryData.validation?.status || 'N/A'}</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="bg-yellow-50 rounded-lg p-6">
-                    <div className="flex items-center">
-                      <div className="p-3 bg-yellow-600 rounded-full">
-                        <Clock className="w-6 h-6 text-white" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm text-gray-500">Version</p>
-                        <p className="text-3xl font-bold text-gray-900">v{summaryData.versionNumber}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {!selectedTimetableId && (
-                <div className="text-center text-gray-500 py-8">
-                  Select a timetable to view summary statistics
-                </div>
-              )}
-
-              <div className="border-t border-gray-200 pt-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Export Options</h3>
-                <div className="flex flex-wrap gap-4">
-                  {selectedTimetableId ? (
-                    <>
-                      <button onClick={() => handleExport('class')} className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                        <Download className="w-4 h-4 mr-2" />
-                        Export Class Timetables (Excel)
-                      </button>
-                      <button onClick={() => handleExport('faculty')} className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
-                        <Download className="w-4 h-4 mr-2" />
-                        Export Faculty Timetables (Excel)
-                      </button>
-                      <button onClick={() => handleExport('master')} className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
-                        <Download className="w-4 h-4 mr-2" />
-                        Export Master Timetable (Excel)
-                      </button>
-                      <button onClick={() => handleExport('resource')} className="flex items-center px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700">
-                        <Download className="w-4 h-4 mr-2" />
-                        Export Resource Allocation (Excel)
-                      </button>
-                    </>
-                  ) : (
-                    <p className="text-gray-500">Select a timetable to enable exports</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'faculty-load' && (
-            <div className="space-y-4">
-              {currentTerm ? (
-                <>
-                  <p className="text-gray-500">
-                    Faculty load distribution for {currentTerm.academic_year} Sem {currentTerm.semester}
-                  </p>
-                  {loadSummary && (
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Faculty</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Theory Hours</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Practical Hours</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tutorial Hours</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Hours</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Subjects</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200">
-                          {loadSummary.faculty_summary?.map((f) => (
-                            <tr key={f.faculty_id} className="hover:bg-gray-50">
-                              <td className="px-4 py-3 text-sm text-gray-900">{f.faculty_name}</td>
-                              <td className="px-4 py-3 text-sm text-gray-900">{f.total_theory_hours}</td>
-                              <td className="px-4 py-3 text-sm text-gray-900">{f.total_practical_hours}</td>
-                              <td className="px-4 py-3 text-sm text-gray-900">{f.total_tutorial_hours}</td>
-                              <td className="px-4 py-3 text-sm font-medium text-gray-900">{f.total_hours}</td>
-                              <td className="px-4 py-3 text-sm text-gray-900">{f.subject_count}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                  <button className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
-                    <Download className="w-4 h-4 mr-2" />
-                    Export Faculty Load Report
-                  </button>
-                </>
-              ) : (
-                <p className="text-gray-500">No current academic term set</p>
-              )}
-            </div>
-          )}
-
-          {activeTab === 'resource-util' && (
-            <div className="space-y-4">
-              <p className="text-gray-500">Resource utilization statistics - requires timetable data</p>
-              {selectedTimetableId && (
-                <button onClick={() => handleExport('resource')} className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
-                  <Download className="w-4 h-4 mr-2" />
-                  Export Resource Utilization Report
-                </button>
-              )}
-            </div>
-          )}
-
-          {activeTab === 'conflicts' && (
-            <div className="space-y-4">
-              {selectedTimetableId && summaryData ? (
-                <>
-                  <p className="text-gray-500">
-                    {summaryData.validation?.status === 'PASS'
-                      ? 'No conflicts detected in current timetable version.'
-                      : `${summaryData.validation?.errors?.length || 0} conflict(s) detected.`
-                    }
-                  </p>
-                  {summaryData.validation?.errors?.length && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                      <h4 className="font-medium text-red-800 mb-2">Conflicts:</h4>
-                      <ul className="text-sm text-red-700 space-y-1">
-                        {summaryData.validation.errors.map((error: string, i: number) => (
-                          <li key={i}>• {error}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  <button className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
-                    <Download className="w-4 h-4 mr-2" />
-                    Export Conflict Report
-                  </button>
-                </>
-              ) : (
-                <p className="text-gray-500">Select a timetable to view conflicts</p>
-              )}
-            </div>
-          )}
-
-          {activeTab === 'validation' && (
-            <div className="space-y-4">
-              {selectedTimetableId && summaryData ? (
-                <>
-                  {summaryData.validation?.status === 'PASS' ? (
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                      <div className="flex items-center">
-                        <CheckCircle className="w-6 h-6 text-green-600 mr-3" />
-                        <div>
-                          <p className="font-medium text-green-800">Validation Passed</p>
-                          <p className="text-sm text-green-700">
-                            {summaryData.validation?.warnings?.length || 0} warning(s).
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ) : summaryData.validation?.status === 'WARNING' ? (
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                      <div className="flex items-center">
-                        <AlertTriangle className="w-6 h-6 text-yellow-600 mr-3" />
-                        <div>
-                          <p className="font-medium text-yellow-800">Validation Warning</p>
-                          <p className="text-sm text-yellow-700">
-                            {summaryData.validation?.warnings?.length || 0} warning(s).
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                      <div className="flex items-center">
-                        <AlertTriangle className="w-6 h-6 text-red-600 mr-3" />
-                        <div>
-                          <p className="font-medium text-red-800">Validation Failed</p>
-                          <p className="text-sm text-red-700">
-                            {summaryData.validation?.errors?.length || 0} error(s).
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  <button className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
-                    <Download className="w-4 h-4 mr-2" />
-                    Export Validation Report
-                  </button>
-                </>
-              ) : (
-                <p className="text-gray-500">Select a timetable to view validation results</p>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
+  const selector = (
+    <div className="grid gap-3 border-b border-[var(--rule)] pb-4 md:grid-cols-2">
+      <label className="text-sm">
+        <span className="field-label">Timetable</span>
+        <select value={selectedTimetableId} onChange={(event) => { setSelectedTimetableId(event.target.value); setSelectedVersionId(''); }} className="field-select">
+          <option value="">Select timetable</option>
+          {(timetables ?? []).map((timetable) => <option key={timetable.id} value={timetable.id}>{timetable.name} ({timetable.academic_year} Sem {timetable.semester})</option>)}
+        </select>
+      </label>
+      <label className="text-sm">
+        <span className="field-label">Filed version</span>
+        <select value={selectedVersionId} onChange={(event) => setSelectedVersionId(event.target.value)} className="field-select" disabled={!selectedTimetableId}>
+          <option value="">Select version</option>
+          {(versionsQuery.data?.versions ?? []).map((version) => <option key={version.id} value={version.id}>v{version.version_number} [{version.status}]</option>)}
+        </select>
+      </label>
     </div>
   );
+
+  const showVersionLoading = activeTab !== 'faculty-load' && !!selectedTimetableId && (versionsQuery.isLoading || (!!versionsQuery.data?.versions.length && !selectedVersionId));
+  const showLoading = timetablesQuery.isLoading || (activeTab === 'faculty-load' ? termsQuery.isLoading || facultyLoadQuery.isLoading : showVersionLoading || activeQuery.isLoading);
+  const showError = timetablesQuery.error || (activeTab === 'faculty-load' ? termsQuery.error || facultyLoadQuery.error : versionsQuery.error || activeQuery.error);
+
+  return (
+    <div className="space-y-5">
+      <PageHeader kicker="Office" title="Reports" description="Read backend report responses for the selected term and filed timetable version." />
+      {DEMO_MODE && <p className="border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-950" role="status">DEMO DATA · Reports use deterministic fixture responses and are read-only.</p>}
+      <div className="paper-panel p-4">
+        <nav className="flex gap-2 overflow-x-auto border-b border-[var(--rule)] pb-3" aria-label="Reports tabs">
+          {reports.map((report) => {
+            const Icon = report.icon;
+            return <button key={report.id} onClick={() => setActiveTab(report.id)} aria-pressed={activeTab === report.id} className={`inline-flex min-h-[44px] items-center gap-2 whitespace-nowrap border-b-2 px-3 text-sm font-semibold ${activeTab === report.id ? 'border-[var(--ink)] text-[var(--ink)]' : 'border-transparent text-[var(--ink-secondary)]'}`}><Icon className="h-4 w-4" aria-hidden="true" />{report.name}</button>;
+          })}
+        </nav>
+        <div className="mt-4">{selector}</div>
+        {exportError && <p className="mt-4 border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800" role="alert">{exportError}</p>}
+      </div>
+
+      {showLoading ? <LoadingState label="Loading report" /> : showError ? <ErrorState title="Report data did not load" description="The report service failed. No empty values are substituted for the missing response." retry={<button className="min-h-[44px] border border-[var(--rule-strong)] px-4 py-2 font-semibold" onClick={() => { void timetablesQuery.refetch(); void termsQuery.refetch(); void versionsQuery.refetch(); void activeQuery.refetch(); }}>Retry report</button>} /> : (
+        <>
+          {activeTab === 'summary' && <SummaryPanel data={summaryQuery.data} hasSelection={!!selectedVersionId} onExport={handleExport} />}
+          {activeTab === 'faculty-load' && <FacultyLoadPanel data={facultyLoadQuery.data} hasTerm={!!currentTerm} />}
+          {activeTab === 'resource-util' && <ResourcePanel data={resourceQuery.data} hasSelection={!!selectedVersionId} />}
+          {activeTab === 'conflicts' && <ConflictPanel data={conflictsQuery.data} hasSelection={!!selectedVersionId} />}
+          {activeTab === 'validation' && <ValidationPanel data={validationQuery.data} hasSelection={!!selectedVersionId} />}
+        </>
+      )}
+    </div>
+  );
+}
+
+function SummaryPanel({ data, hasSelection, onExport }: { data?: SummaryData; hasSelection: boolean; onExport: (kind: 'class' | 'faculty' | 'master' | 'resource') => void }) {
+  if (!hasSelection) return <EmptyState title="Select a filed version" description="Choose a timetable and a readable version to load the summary response." />;
+  if (!data) return <EmptyState title="No summary response" description="The selected version has no report response yet." />;
+  const { summary, validation } = data;
+  return <div className="space-y-4">
+    <div className="grid gap-4 md:grid-cols-3">
+      <Panel title="Entries" meta="From timetable-summary"><p className="font-display text-4xl">{summary.total_entries}</p></Panel>
+      <Panel title="Validation" meta={`Version ${validation.version_number}`}><p className="font-display text-4xl">{validation.status}</p></Panel>
+      <Panel title="Version" meta={summary.version_status}><p className="font-display text-4xl">v{summary.version_number}</p></Panel>
+    </div>
+    <div className="flex flex-wrap items-center gap-2">
+      {(['class', 'faculty', 'master', 'resource'] as const).map((kind) => <button key={kind} disabled={DEMO_MODE} onClick={() => onExport(kind)} className="inline-flex min-h-[44px] items-center gap-2 border border-[var(--rule-strong)] px-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"><Download className="h-4 w-4" aria-hidden="true" />Export {kind} workbook</button>)}
+      {DEMO_MODE && <Badge tone="neutral">Exports disabled in read-only demo</Badge>}
+    </div>
+  </div>;
+}
+
+function FacultyLoadPanel({ data, hasTerm }: { data?: FacultyLoadReport; hasTerm: boolean }) {
+  if (!hasTerm) return <EmptyState title="No current academic term" description="Set a current term before loading faculty workload." />;
+  if (!data?.summary.length) return <EmptyState title="No faculty load rows" description="The selected term has no faculty load summary rows." />;
+  return <Panel title="Faculty load" meta={`Term ${data.academic_term_id}`}><div className="overflow-x-auto"><table className="w-full text-sm"><caption className="sr-only">Faculty load by teaching mode</caption><thead><tr>{['Faculty', 'Theory', 'Practical', 'Tutorial', 'Project', 'Total', 'Subjects'].map((heading) => <th key={heading} className="border-b border-[var(--rule)] px-3 py-2 text-left font-mono text-xs uppercase">{heading}</th>)}</tr></thead><tbody>{data.summary.map((faculty) => <tr key={faculty.faculty_id} className="border-b border-[var(--rule)]"><th scope="row" className="px-3 py-2 text-left">{faculty.faculty_name ?? faculty.name}</th><td className="px-3 py-2">{faculty.theory_hours}</td><td className="px-3 py-2">{faculty.practical_hours}</td><td className="px-3 py-2">{faculty.tutorial_hours}</td><td className="px-3 py-2">{faculty.project_hours}</td><td className="px-3 py-2 font-semibold">{faculty.total_hours}</td><td className="px-3 py-2">{faculty.subject_count ?? 'Not supplied'}</td></tr>)}</tbody></table></div></Panel>;
+}
+
+function ResourcePanel({ data, hasSelection }: { data?: ResourceUtilizationReport; hasSelection: boolean }) {
+  if (!hasSelection) return <EmptyState title="Select a filed version" description="Resource utilization is calculated from the selected timetable version." />;
+  if (!data?.utilization.length) return <EmptyState title="No resource usage" description="The selected version contains no resource utilization rows." />;
+  return <Panel title="Resource utilization" meta={`${data.total_resources} resources, ${data.total_time_slots} time slots`}><div className="overflow-x-auto"><table className="w-full text-sm"><caption className="sr-only">Resource utilization report</caption><thead><tr>{['Resource', 'Type', 'Used slots', 'Total slots', 'Utilization'].map((heading) => <th key={heading} className="border-b border-[var(--rule)] px-3 py-2 text-left font-mono text-xs uppercase">{heading}</th>)}</tr></thead><tbody>{data.utilization.map((resource) => <tr key={resource.resource_id} className="border-b border-[var(--rule)]"><th scope="row" className="px-3 py-2 text-left">{resource.resource_name}</th><td className="px-3 py-2">{resource.resource_type}</td><td className="px-3 py-2">{resource.used_slots}</td><td className="px-3 py-2">{resource.total_slots}</td><td className="px-3 py-2">{resource.utilization_percent}%</td></tr>)}</tbody></table></div></Panel>;
+}
+
+function ConflictPanel({ data, hasSelection }: { data?: ConflictReport; hasSelection: boolean }) {
+  if (!hasSelection) return <EmptyState title="Select a filed version" description="Conflict results are tied to a timetable version." />;
+  if (!data) return <EmptyState title="No conflict response" description="The selected version has no conflict report response." />;
+  return <Panel title="Conflict report" meta={`Version ${data.version_number}`}><p className="font-semibold">{data.is_valid ? 'No conflicts reported.' : `${data.errors.length} conflict(s) reported.`}</p>{data.errors.length > 0 && <ul className="mt-3 list-inside list-disc space-y-1 text-sm">{data.errors.map((error) => <li key={error}>{error}</li>)}</ul>}{data.warnings.length > 0 && <p className="mt-3 text-sm">Warnings: {data.warnings.join('; ')}</p>}</Panel>;
+}
+
+function ValidationPanel({ data, hasSelection }: { data?: ValidationReport; hasSelection: boolean }) {
+  if (!hasSelection) return <EmptyState title="Select a filed version" description="Validation results are tied to a timetable version." />;
+  if (!data) return <EmptyState title="No validation response" description="The selected version has no validation report response." />;
+  return <Panel title="Validation report" meta={`Version ${data.version_number}`}><p className="font-display text-3xl">{data.status}</p><p className="mt-2 text-sm">{data.total_entries} entries, {data.errors.length} errors, {data.warnings.length} warnings.</p>{data.errors.length > 0 && <ul className="mt-3 list-inside list-disc space-y-1 text-sm">{data.errors.map((error) => <li key={error}>{error}</li>)}</ul>}{data.warnings.length > 0 && <p className="mt-3 text-sm">Warnings: {data.warnings.join('; ')}</p>}</Panel>;
 }

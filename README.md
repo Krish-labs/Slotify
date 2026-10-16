@@ -41,6 +41,28 @@ npm install
 npm run dev
 ```
 
+### Local prototype without login
+
+The development Docker Compose stack enables a reversible local-only auth bypass:
+
+```bash
+docker compose up --build
+```
+
+It keeps the real API, PostgreSQL, Redis, load-distribution flow, and solver path. The
+frontend does not show `/login`, and the backend accepts local requests without a token.
+`LOCAL_AUTH_DISABLED` is rejected outside `APP_ENV=development`; the production compose
+overlay replaces the development environment and keeps authentication enabled.
+
+The bypass never creates a user or other database record. Protected requests still need
+an already-migrated application schema and an active row in `users` so audit, notification,
+and timetable-version foreign keys remain valid. A database containing only
+`alembic_version` is therefore not a successful timetable-generation setup.
+
+For direct Vite development, use `VITE_AUTH_DISABLED=true` in a local ignored env file.
+Leave `VITE_DEMO_MODE=false` when testing real API/database persistence; demo mode serves
+fixtures and intentionally blocks writes.
+
 ## Data Flow
 
 1. Load Distribution (Excel) → Import & Validate

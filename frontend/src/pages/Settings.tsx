@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
-import { User, Bell, Shield, Palette, Database, Key, Save, Loader2, Download } from 'lucide-react';
+import { User, Bell, Shield, Palette, Database, Key, Download } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { useTheme } from '../context/useTheme';
+import { DEMO_MODE } from '../demo/mode';
 
 export function Settings() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('profile');
-  const [saving, setSaving] = useState(false);
+  const { theme, setTheme } = useTheme();
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
@@ -36,35 +37,12 @@ export function Settings() {
     });
   }
 
-  const updateProfileMutation = useMutation({
-    mutationFn: async (data: { first_name: string; last_name: string; email: string }) => {
-      // The backend doesn't have a profile update endpoint yet
-      // This would need to be added to the backend
-      return new Promise((resolve) => setTimeout(() => resolve(data), 500));
-    },
-    onSuccess: () => {
-      setSaving(false);
-    },
-    onError: () => {
-      setSaving(false);
-    },
-  });
-
-  const handleProfileSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-    updateProfileMutation.mutate({
-      first_name: formData.first_name,
-      last_name: formData.last_name,
-      email: formData.email,
-    });
-  };
-
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
         <p className="text-gray-500">Manage your account and application preferences</p>
+        <p className="mt-1 text-sm font-semibold text-amber-800">{DEMO_MODE ? 'DEMO DATA · Account settings are read-only.' : 'Account profile updates are not available from the backend yet.'}</p>
       </div>
 
       <div className="bg-white rounded-lg shadow">
@@ -89,14 +67,14 @@ export function Settings() {
 
         <div className="p-6 max-w-3xl">
           {activeTab === 'profile' && (
-            <form className="space-y-6" onSubmit={handleProfileSubmit}>
+            <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
                   <input
                     type="text"
                     value={formData.first_name}
-                    onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                     readOnly
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -105,17 +83,17 @@ export function Settings() {
                   <input
                     type="text"
                     value={formData.last_name}
-                    onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                     readOnly
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                   <input
+                     type="email"
+                     value={formData.email}
+                     readOnly
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -141,22 +119,8 @@ export function Settings() {
                   readOnly
                 />
               </div>
-              <div className="flex justify-end pt-4">
-                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center" disabled={saving || updateProfileMutation.isPending}>
-                  {saving || updateProfileMutation.isPending ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-4 h-4 mr-2" />
-                      Save Changes
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
+               <p className="border border-[var(--rule)] bg-[var(--paper-inset)] px-3 py-2 text-sm text-[var(--ink-secondary)]">Profile changes are display-only until a backend profile update endpoint is available.</p>
+            </div>
           )}
 
           {activeTab === 'notifications' && (
@@ -189,7 +153,7 @@ export function Settings() {
             <div className="space-y-6">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Change Password</h3>
-                <form className="space-y-4">
+                  <form className="space-y-4" onSubmit={(event) => event.preventDefault()}>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
                     <input type="password" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
@@ -202,13 +166,13 @@ export function Settings() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
                     <input type="password" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
                   </div>
-                  <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Update Password</button>
+                   <button type="submit" disabled className="px-4 py-2 bg-blue-600 text-white rounded-lg opacity-50">Password update unavailable</button>
                 </form>
               </div>
               <div className="border-t border-gray-200 pt-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Two-Factor Authentication</h3>
                 <p className="text-gray-500 mb-4">Add an extra layer of security to your account.</p>
-                <button className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700">Enable 2FA</button>
+                 <button disabled className="px-4 py-2 bg-gray-600 text-white rounded-lg opacity-50">2FA setup unavailable</button>
               </div>
             </div>
           )}
@@ -218,13 +182,16 @@ export function Settings() {
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Theme</h3>
                 <div className="grid grid-cols-3 gap-4">
-                  {['Light', 'Dark', 'System'].map((theme) => (
+                  {(['light', 'dark'] as const).map((themeOption) => (
                     <button
-                      key={theme}
-                      className={`p-4 border-2 rounded-lg text-center transition-colors ${theme === 'Light' ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}
+                      key={themeOption}
+                      type="button"
+                      onClick={() => setTheme(themeOption)}
+                      aria-pressed={theme === themeOption}
+                      className={`p-4 border-2 rounded-lg text-center transition-colors ${theme === themeOption ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}
                     >
-                      <p className="font-medium text-gray-900">{theme}</p>
-                      <p className="text-sm text-gray-500 mt-1">{theme === 'System' ? 'Matches OS' : `${theme} mode`}</p>
+                      <p className="font-medium text-gray-900">{themeOption === 'light' ? 'Light' : 'Dark'}</p>
+                      <p className="text-sm text-gray-500 mt-1">{themeOption} mode</p>
                     </button>
                   ))}
                 </div>
@@ -248,27 +215,28 @@ export function Settings() {
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Export Data</h3>
                 <div className="space-y-3">
-                  <button className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50">
+                   <div className="w-full flex items-center justify-between p-4 border border-gray-200">
                     <div>
                       <p className="font-medium text-gray-900">Export All Timetables</p>
                       <p className="text-sm text-gray-500">Download all timetable data as Excel</p>
                     </div>
                     <Download className="w-5 h-5 text-gray-400" />
-                  </button>
-                  <button className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50">
+                   </div>
+                   <div className="w-full flex items-center justify-between p-4 border border-gray-200">
                     <div>
                       <p className="font-medium text-gray-900">Export Faculty Data</p>
                       <p className="text-sm text-gray-500">Download faculty information</p>
                     </div>
                     <Download className="w-5 h-5 text-gray-400" />
-                  </button>
-                  <button className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50">
+                   </div>
+                   <div className="w-full flex items-center justify-between p-4 border border-gray-200">
                     <div>
                       <p className="font-medium text-gray-900">Export Resource Data</p>
                       <p className="text-sm text-gray-500">Download resource configurations</p>
                     </div>
                     <Download className="w-5 h-5 text-gray-400" />
-                  </button>
+                   </div>
+                   <p className="text-sm text-gray-500">Data exports are not connected to a backend endpoint yet.</p>
                 </div>
               </div>
               <div className="border-t border-gray-200 pt-6">
@@ -277,7 +245,8 @@ export function Settings() {
                   <div className="p-4 border border-gray-200 rounded-lg">
                     <p className="font-medium text-gray-900">Import Load Distribution</p>
                     <p className="text-sm text-gray-500">Upload Excel file to update faculty loads</p>
-                    <input type="file" accept=".xlsx,.xls" className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-lg" />
+                     <input type="file" accept=".xlsx,.xls" disabled className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-lg opacity-50" />
+                     <p className="mt-1 text-sm text-gray-500">Import is available from Load Distribution.</p>
                   </div>
                 </div>
               </div>
@@ -289,7 +258,7 @@ export function Settings() {
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">API Keys</h3>
                 <p className="text-gray-500 mb-4">Manage API keys for external integrations.</p>
-                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Generate New Key</button>
+                 <button disabled className="px-4 py-2 bg-blue-600 text-white rounded-lg opacity-50">API keys unavailable</button>
               </div>
               <div className="border-t border-gray-200 pt-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Existing Keys</h3>

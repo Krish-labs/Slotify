@@ -15,14 +15,19 @@ from app.database.models import (
     Batch,
     Class,
     Faculty,
+    Leave,
+    LoadDistributionSourceRow,
     Notification,
     Resource,
+    ResourceAvailability,
     Section,
     Subject,
+    Substitution,
     TeachingAssignment,
     TimeSlot,
     Timetable,
     TimetableEntry,
+    TimetableJob,
     TimetableTemplate,
     TimetableVersion,
     User,
@@ -38,8 +43,9 @@ async def session_factory():
     engine = create_async_engine(
         "sqlite+aiosqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False}
     )
-    # Only the tables the worker touches (the worker also writes audit logs
-    # and notifications on generate/reoptimize, so those tables are included).
+    # Full schema: the worker reads leaves/resource_availability (availability
+    # blocks) and writes durable timetable_jobs. A subset schema turns those
+    # into OperationalError ("no such table") instead of real results.
     tables = [
         Base.metadata.tables[m.__tablename__]
         for m in (
@@ -52,11 +58,16 @@ async def session_factory():
             Section,
             Batch,
             Resource,
+            ResourceAvailability,
             TimeSlot,
             TeachingAssignment,
             Timetable,
             TimetableVersion,
             TimetableEntry,
+            TimetableJob,
+            Leave,
+            Substitution,
+            LoadDistributionSourceRow,
             AuditLog,
             Notification,
         )

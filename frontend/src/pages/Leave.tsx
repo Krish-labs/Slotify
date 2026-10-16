@@ -3,6 +3,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, CheckCircle, XCircle, Clock, User } from 'lucide-react';
 import { leaveApi, facultyApi } from '../api';
 import type { Leave, Faculty } from '../api/types';
+import { EmptyState, ErrorState, LoadingState } from '../components/ui/States';
+import { DEMO_MODE } from '../demo/mode';
+import { errorMessage } from '../utils/timetable';
 
 export function Leave() {
   const queryClient = useQueryClient();
@@ -16,12 +19,12 @@ export function Leave() {
     reason: '',
   });
 
-  const { data: leavesData, isLoading: leavesLoading } = useQuery({
+  const { data: leavesData, isLoading: leavesLoading, error: leavesError, refetch: refetchLeaves } = useQuery({
     queryKey: ['leaves', filterStatus],
     queryFn: () => leaveApi.list({ status: filterStatus === 'all' ? undefined : filterStatus }),
   });
 
-  const { data: facultyData } = useQuery({
+  const { data: facultyData, isLoading: facultyLoading, error: facultyError, refetch: refetchFaculty } = useQuery({
     queryKey: ['faculty'],
     queryFn: () => facultyApi.list({ page_size: 100, is_active: true }),
   });
@@ -54,6 +57,8 @@ export function Leave() {
   });
 
   const filteredLeaves = leavesData?.leaves || [];
+  const queryError = leavesError || facultyError;
+  const mutationError = createMutation.error || approveMutation.error || rejectMutation.error;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -103,6 +108,7 @@ export function Leave() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Leave Management</h1>
           <p className="text-gray-500">Manage faculty leave applications</p>
+          {DEMO_MODE && <p className="mt-1 text-sm font-semibold text-amber-800">DEMO DATA · Read-only fixture requests. New requests and decisions are disabled.</p>}
         </div>
         <div className="flex items-center space-x-3">
           <select
@@ -117,7 +123,9 @@ export function Leave() {
           </select>
           <button
             onClick={() => setShowForm(true)}
-            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            disabled={DEMO_MODE}
+            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+            title={DEMO_MODE ? 'Disabled in local demo mode' : undefined}
           >
             <Plus className="w-4 h-4 mr-2" />
             New Leave Request
@@ -126,9 +134,16 @@ export function Leave() {
       </div>
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
+        {mutationError && <p role="alert" className="border-b border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{errorMessage(mutationError, 'The leave request action failed.')}</p>}
         <div className="overflow-x-auto">
-          {leavesLoading ? (
-            <div className="p-8 text-center text-gray-500">Loading leave requests...</div>
+          {leavesLoading || facultyLoading ? (
+            <LoadingState label="Loading leave requests" />
+          ) : queryError ? (
+            <ErrorState
+              title="Leave requests did not load"
+              description="The leave or faculty service failed. No fallback requests are shown."
+              retry={<button className="min-h-[44px] border border-[var(--rule-strong)] px-4 py-2 font-semibold" onClick={() => { void refetchLeaves(); void refetchFaculty(); }}>Retry leave data</button>}
+            />
           ) : (
             <table className="w-full">
               <thead className="bg-gray-50">
@@ -143,8 +158,8 @@ export function Leave() {
               <tbody className="divide-y divide-gray-200">
                 {filteredLeaves.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
-                      No leave requests found
+                    <td colSpan={8}>
+                      <EmptyState title="No leave requests" description="No requests match the selected status." />
                     </td>
                   </tr>
                 ) : (

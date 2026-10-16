@@ -243,7 +243,7 @@ Important source files include:
 
 ```text
 data/raw/Load Distribution.xlsx
-data/raw/TT Faculty_16_8_2026(1).xlsx
+data/raw/TT Faculty_16_8_2026.xlsx
 ```
 
 The raw files are authoritative inputs for development/testing where explicitly requested.

@@ -1,84 +1,85 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { errorMessage } from '../utils/timetable';
 
 export function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     setError('');
-    setIsLoading(true);
+    setIsSubmitting(true);
     try {
       await login(email, password);
-      navigate('/dashboard');
+      const destination = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname;
+      navigate(destination && destination !== '/login' ? destination : '/dashboard', { replace: true });
     } catch (err) {
-      const axiosError = err as { response?: { data?: { detail?: string } } };
-      setError(axiosError.response?.data?.detail || 'Login failed. Please check your credentials.');
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      setError(
+        status === 401
+          ? 'Sign-in was not authorized. Check the account details or contact an administrator.'
+          : errorMessage(err, 'Sign-in could not be completed. Check the service and try again.'),
+      );
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="text-center text-3xl font-bold text-gray-900">SchedulAI</h2>
-          <p className="mt-2 text-center text-gray-600">Sign in to your account</p>
+    <main className="min-h-screen bg-[var(--paper)] px-4 py-12 text-[var(--ink)]">
+      <div className="mx-auto w-full max-w-md">
+        <div className="rule-top pt-4">
+          <p className="kicker">Timetable Office</p>
+          <h1 className="font-display mt-2 text-4xl">Sign in to Slotify</h1>
+          <p className="mt-2 text-[var(--ink-secondary)]">Use an authorized department account to open the planning desk.</p>
         </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+
+        <form onSubmit={handleSubmit} className="paper-panel mt-8 space-y-5 p-5">
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm" role="alert">
+            <div role="alert" className="border-l-4 border-[var(--ink)] bg-[var(--paper-inset)] px-3 py-2 text-sm">
               {error}
             </div>
           )}
-          <div className="rounded-md shadow-sm -space-y-px">
-            <div>
-              <label htmlFor="email" className="sr-only">Email address</label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="Email address"
-              />
-            </div>
-            <div>
-              <label htmlFor="password" className="sr-only">Password</label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="Password"
-              />
-            </div>
-          </div>
-          <div>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? 'Signing in...' : 'Sign in'}
-            </button>
-          </div>
+          <label className="field-label">
+            Email
+            <input
+              className="field-input mt-1"
+              name="email"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              required
+            />
+          </label>
+          <label className="field-label">
+            Password
+            <input
+              className="field-input mt-1"
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              required
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="min-h-[44px] w-full bg-[var(--ink)] px-4 py-2 text-sm font-bold text-[var(--paper)] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isSubmitting ? 'Signing in…' : 'Sign in'}
+          </button>
         </form>
       </div>
-    </div>
+    </main>
   );
 }

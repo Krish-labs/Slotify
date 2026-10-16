@@ -19,7 +19,7 @@ from sqlalchemy.orm import selectinload
 from app.core.permissions import ROLE_PERMISSIONS
 from app.core.permissions import Permission as PermissionEnum
 from app.core.permissions import Role as RoleEnum
-from app.core.security import get_password_hash
+from app.core.security import get_password_hash, validate_password_strength
 from app.database.models.permission import Permission
 from app.database.models.role import Role
 from app.database.models.user import User
@@ -65,6 +65,10 @@ async def seed_roles(db: AsyncSession, permissions: dict[str, Permission]) -> di
 async def seed_admin(
     db: AsyncSession, roles: dict[str, Role], email: str, password: str
 ) -> User | None:
+    try:
+        validate_password_strength(password)
+    except ValueError as e:
+        raise ValueError(f"SEED_ADMIN_PASSWORD rejected by password policy: {e}") from e
     user = (
         await db.execute(select(User).options(selectinload(User.roles)).where(User.email == email))
     ).scalar_one_or_none()

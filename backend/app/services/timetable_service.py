@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+import os
+import tempfile
 from uuid import UUID
 
 from sqlalchemy import select
@@ -20,6 +24,13 @@ from app.validators.timetable_validator import TimetableValidator
 class TimetableService:
     def __init__(self, db: AsyncSession):
         self.db = db
+
+    @staticmethod
+    def _temp_export_path(prefix: str, timetable_id: UUID) -> str:
+        """Unique per-request export path (avoids predictable /tmp races)."""
+        fd, path = tempfile.mkstemp(prefix=f"{prefix}_{timetable_id}_", suffix=".xlsx")
+        os.close(fd)
+        return path
 
     async def get_all(self):
         result = await self.db.execute(select(Timetable).where(Timetable.status != "ARCHIVED"))
@@ -156,7 +167,7 @@ class TimetableService:
         resources = await self._get_resources_dict(entries)
 
         exporter = ClassTimetableExporter()
-        output_path = f"/tmp/export_class_{timetable_id}.xlsx"
+        output_path = self._temp_export_path("export_class", timetable_id)
         exporter.export(entries, sections, time_slots, resources, output_path)
         return output_path
 
@@ -184,7 +195,7 @@ class TimetableService:
         resources = await self._get_resources_dict(entries)
 
         exporter = FacultyTimetableExporter()
-        output_path = f"/tmp/export_faculty_{timetable_id}.xlsx"
+        output_path = self._temp_export_path("export_faculty", timetable_id)
         exporter.export(entries, faculty, time_slots, resources, output_path)
         return output_path
 
@@ -213,7 +224,7 @@ class TimetableService:
         faculty = await self._get_faculty_dict(entries)
 
         exporter = MasterTimetableExporter()
-        output_path = f"/tmp/export_master_{timetable_id}.xlsx"
+        output_path = self._temp_export_path("export_master", timetable_id)
         exporter.export(entries, resources, time_slots, sections, faculty, output_path)
         return output_path
 
@@ -240,7 +251,7 @@ class TimetableService:
         time_slots = await self._get_time_slots_dict(entries)
 
         exporter = ResourceAllocationExporter()
-        output_path = f"/tmp/export_resource_allocation_{timetable_id}.xlsx"
+        output_path = self._temp_export_path("export_resource_allocation", timetable_id)
         exporter.export(entries, resources, time_slots, output_path)
         return output_path
 
@@ -262,7 +273,7 @@ class TimetableService:
         )
 
         exporter = ChangeHistoryExporter()
-        output_path = f"/tmp/export_change_history_{timetable_id}.xlsx"
+        output_path = self._temp_export_path("export_change_history", timetable_id)
         exporter.export(versions, output_path)
         return output_path
 
@@ -271,7 +282,7 @@ class TimetableService:
         from app.exporters.validation_report_exporter import ValidationReportExporter
 
         exporter = ValidationReportExporter()
-        output_path = f"/tmp/export_validation_{timetable_id}.xlsx"
+        output_path = self._temp_export_path("export_validation", timetable_id)
         exporter.export(validation, output_path)
         return output_path
 
